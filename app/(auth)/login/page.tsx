@@ -2,9 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { authAPI, type LoginCredentials } from '@/lib/api';
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({
+  const router = useRouter();
+  const [formData, setFormData] = useState<LoginCredentials>({
     username: '',
     password: '',
     rememberMe: false
@@ -28,18 +31,25 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // TODO: Replace with actual authentication API call
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+      const response = await authAPI.login(formData);
       
-      // For now, just simulate successful login
-      if (formData.username && formData.password) {
+      if (response.success && response.data) {
+        // Store the token and user data
+        const { token, user } = response.data;
+        
+        // Store user data in localStorage if rememberMe is checked
+        if (formData.rememberMe) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+        
         // Redirect to dashboard
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
       } else {
-        setError('Please enter valid credentials');
+        setError(response.error || 'Login failed. Please check your credentials.');
       }
-    } catch {
-      setError('Login failed. Please check your credentials.');
+    } catch (err) {
+      setError('Network error. Please check your connection and try again.');
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +76,7 @@ export default function LoginPage() {
       
       <div className="relative w-full max-w-md">
         {/* Login Card */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8 animate-[pulse-glow_4s_ease-in-out_infinite]">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8   animate-[pulse-glow_4s_ease-in-out_infinite]">
           {/* Header */}
           <div className="text-center mb-8">
             {/* SCADA Logo/Icon */}
