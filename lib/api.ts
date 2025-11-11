@@ -106,7 +106,7 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
       timeout: 30000, // 30 second timeout for SCADA operations
-      withCredentials: false, // Don't send cookies unless needed
+      withCredentials: true, // Don't send cookies unless needed
     });
 
     // Get token from localStorage if available
