@@ -1,4 +1,6 @@
 // API configuration and utilities
+import axios, { AxiosInstance, AxiosError } from 'axios';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 export interface ApiResponse<T = unknown> {
@@ -94,115 +96,118 @@ export interface VariableRecord {
 
 
 class ApiClient {
-  private baseURL: string;
+  private axiosInstance: AxiosInstance;
   private token: string | null = null;
 
   constructor(baseURL: string) {
-    this.baseURL = baseURL;
+    this.axiosInstance = axios.create({
+      baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000, // 30 second timeout for SCADA operations
+      withCredentials: false, // Don't send cookies unless needed
+    });
+
     // Get token from localStorage if available
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem('authToken');
     }
+
+    // Add request interceptor to include auth token
+    this.axiosInstance.interceptors.request.use((config) => {
+      if (this.token) {
+        config.headers.Authorization = `Bearer ${this.token}`;
+      }
+      return config;
+    });
+
+    // Add response interceptor for error handling
+    this.axiosInstance.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        // Handle axios errors consistently
+        return Promise.reject(error);
+      }
+    );
   }
 
-  private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
-
-    return headers;
-  }
-
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-    try {
-      const data = await response.json();
+  private handleError(error: unknown): ApiResponse<never> {
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError;
       
-      if (!response.ok) {
+      if (axiosError.response?.data) {
+        const data = axiosError.response.data as { message?: string; error?: string };
         return {
           success: false,
           error: data.message || data.error || 'An error occurred',
         };
       }
-
-      return {
-        success: true,
-        data: data,
-      };
-    } catch {
+      
+      if (axiosError.code === 'NETWORK_ERROR' || !axiosError.response) {
+        return {
+          success: false,
+          error: 'Network error',
+        };
+      }
+      
       return {
         success: false,
-        error: 'Failed to parse response',
+        error: axiosError.message || 'An error occurred',
       };
     }
+    
+    return {
+      success: false,
+      error: 'Unknown error occurred',
+    };
   }
 
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      return this.handleResponse<T>(response);
-    } catch {
+      const response = await this.axiosInstance.get(endpoint);
       return {
-        success: false,
-        error: 'Network error',
+        success: true,
+        data: response.data,
       };
+    } catch (error) {
+      return this.handleError(error);
     }
   }
 
   async post<T>(endpoint: string, data: Record<string, unknown> | LoginCredentials | Partial<User> | Partial<Device> | unknown[]): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify(data),
-      });
-
-      return this.handleResponse<T>(response);
-    } catch {
+      const response = await this.axiosInstance.post(endpoint, data);
       return {
-        success: false,
-        error: 'Network error',
+        success: true,
+        data: response.data,
       };
+    } catch (error) {
+      return this.handleError(error);
     }
   }
 
   async put<T>(endpoint: string, data: Record<string, unknown> | Partial<User> | Partial<Device>): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'PUT',
-        headers: this.getHeaders(),
-        body: JSON.stringify(data),
-      });
-
-      return this.handleResponse<T>(response);
-    } catch {
+      const response = await this.axiosInstance.put(endpoint, data);
       return {
-        success: false,
-        error: 'Network error',
+        success: true,
+        data: response.data,
       };
+    } catch (error) {
+      return this.handleError(error);
     }
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'DELETE',
-        headers: this.getHeaders(),
-      });
-
-      return this.handleResponse<T>(response);
-    } catch {
+      const response = await this.axiosInstance.delete(endpoint);
       return {
-        success: false,
-        error: 'Network error',
+        success: true,
+        data: response.data,
       };
+    } catch (error) {
+      return this.handleError(error);
     }
   }
 
@@ -301,6 +306,19 @@ export const scadaAPI = {
     variables: DeviceVariablePayload[] | DeviceVariablePayload
   ): Promise<ApiResponse<{ message: string }>> => {
     return apiClient.post('/variables', variables as unknown as Record<string, unknown>[]);
+  },
+
+  // Update a variable record
+  updateVariable: async (
+    id: number,
+    updates: Partial<VariableRecord>
+  ): Promise<ApiResponse<VariableRecord>> => {
+    return apiClient.put(`/variables/${id}`, updates as Record<string, unknown>);
+  },
+
+  // Delete a variable record
+  deleteVariable: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiClient.delete(`/variables/${id}`);
   },
 
   // Get filtered device variables (SCADA variables not in database)

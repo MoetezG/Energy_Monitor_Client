@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { scadaAPI, DatabaseDevice, VariableRecord } from '@/lib/api';
+import VariableEditModal from './VariableEditModal';
+import VariableDeleteModal from './VariableDeleteModal';
+import { useToast } from './ToastProvider';
 
 interface DeviceValue {
   deviceId: number;
@@ -23,10 +26,9 @@ interface DeviceValuesDisplayProps {
 
 export default function DeviceValuesDisplay({ 
   refreshInterval = 5000, 
-  autoRefresh = true, 
-  showCharts = false,
-  compactView = false 
+  autoRefresh = true
 }: DeviceValuesDisplayProps) {
+  const { showToast } = useToast();
   const [devices, setDevices] = useState<DatabaseDevice[]>([]);
   const [variables, setVariables] = useState<VariableRecord[]>([]);
   const [deviceValues, setDeviceValues] = useState<DeviceValue[]>([]);
@@ -36,6 +38,12 @@ export default function DeviceValuesDisplay({
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid');
+  
+  // Modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedVariable, setSelectedVariable] = useState<VariableRecord | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   const loadDevicesAndVariables = async () => {
     setLoading(true);
@@ -63,7 +71,7 @@ export default function DeviceValuesDisplay({
     }
   };
 
-  const refreshValues = async () => {
+  const refreshValues = useCallback(async () => {
     if (devices.length === 0) return;
     
     setIsRefreshing(true);
@@ -77,7 +85,9 @@ export default function DeviceValuesDisplay({
           deviceName: device.name || `Device ${device.scada_id}`,
           variableCode: variable.var_code,
           variableName: variable.name || variable.var_code,
-          value: Math.random() * 100,
+          value: Math.random() > 0.2
+            ? parseFloat((Math.random() * 100).toFixed(2))
+            : 'N/A',
           unit: variable.unit || 'kW',
           timestamp: new Date(),
           status: Math.random() > 0.1 ? 'online' : 'warning' as const
@@ -91,7 +101,7 @@ export default function DeviceValuesDisplay({
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [devices, variables]);
 
   useEffect(() => {
     loadDevicesAndVariables();
@@ -101,14 +111,14 @@ export default function DeviceValuesDisplay({
     if (devices.length > 0 && variables.length > 0) {
       refreshValues();
     }
-  }, [devices, variables]);
+  }, [devices.length, variables.length, refreshValues]);
 
   useEffect(() => {
     if (!autoRefresh || devices.length === 0) return;
     
     const interval = setInterval(refreshValues, refreshInterval);
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval, devices.length]);
+  }, [autoRefresh, refreshInterval, devices.length, refreshValues]);
 
   const filteredDeviceValues = useMemo(() => {
     if (!selectedDeviceId) return deviceValues;
@@ -151,6 +161,119 @@ export default function DeviceValuesDisplay({
           </svg>
         );
     }
+  };
+
+  // Get variable record for a device value
+  const getVariableRecord = (deviceValue: DeviceValue): VariableRecord | null => {
+    return variables.find(v => 
+      v.device_id === deviceValue.deviceId && 
+      v.var_code === deviceValue.variableCode
+    ) || null;
+  };
+
+  // Handle edit variable
+  const handleEditVariable = (deviceValue: DeviceValue) => {
+    const variableRecord = getVariableRecord(deviceValue);
+    if (variableRecord) {
+      setSelectedVariable(variableRecord);
+      setEditModalOpen(true);
+    }
+  };
+
+  // Handle delete variable
+  const handleDeleteVariable = (deviceValue: DeviceValue) => {
+    const variableRecord = getVariableRecord(deviceValue);
+    if (variableRecord) {
+      setSelectedVariable(variableRecord);
+      setDeleteModalOpen(true);
+    }
+  };
+
+  // Handle save variable
+  const handleSaveVariable = async (variable: VariableRecord, updates: Partial<VariableRecord>) => {
+    setModalLoading(true);
+    try {
+      const response = await scadaAPI.updateVariable(variable.id, updates);
+      if (response.success) {
+        // Update the variables list
+        setVariables(prev => prev.map(v => 
+          v.id === variable.id ? { ...v, ...updates } : v
+        ));
+        setEditModalOpen(false);
+        setSelectedVariable(null);
+        showToast({
+          type: 'success',
+          title: 'Variable Updated',
+          message: `Successfully updated variable "${variable.var_code}"`
+        });
+      } else {
+        const errorMessage = response.error || 'Failed to update variable';
+        setError(errorMessage);
+        showToast({
+          type: 'error',
+          title: 'Update Failed',
+          message: errorMessage
+        });
+      }
+    } catch {
+      const errorMessage = 'Failed to update variable';
+      setError(errorMessage);
+      showToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: errorMessage
+      });
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Handle delete variable confirm
+  const handleDeleteVariableConfirm = async (variable: VariableRecord) => {
+    setModalLoading(true);
+    try {
+      const response = await scadaAPI.deleteVariable(variable.id);
+      if (response.success) {
+        // Remove from variables list
+        setVariables(prev => prev.filter(v => v.id !== variable.id));
+        setDeleteModalOpen(false);
+        setSelectedVariable(null);
+        showToast({
+          type: 'success',
+          title: 'Variable Deleted',
+          message: `Successfully deleted variable "${variable.var_code}"`
+        });
+      } else {
+        const errorMessage = response.error || 'Failed to delete variable';
+        setError(errorMessage);
+        showToast({
+          type: 'error',
+          title: 'Delete Failed',
+          message: errorMessage
+        });
+      }
+    } catch {
+      const errorMessage = 'Failed to delete variable';
+      setError(errorMessage);
+      showToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: errorMessage
+      });
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Close modals
+  const closeEditModal = () => {
+    setEditModalOpen(false);
+    setSelectedVariable(null);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setSelectedVariable(null);
   };
 
   if (loading) {
@@ -273,12 +396,34 @@ export default function DeviceValuesDisplay({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredDeviceValues.map((deviceValue, index) => (
                   <div key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`} 
-                       className="group bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:scale-105 transition-all duration-300">
+                       className="group bg-linear-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:scale-105 transition-all duration-300">
                     <div className="flex items-center justify-between mb-3">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(deviceValue.status)}`}>
                         {getStatusIcon(deviceValue.status)}
                         <span className="ml-1 capitalize">{deviceValue.status}</span>
                       </span>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleEditVariable(deviceValue)}
+                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Edit variable"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVariable(deviceValue)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Delete variable"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                     
                     <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">{deviceValue.deviceName}</h4>
@@ -310,6 +455,7 @@ export default function DeviceValuesDisplay({
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Value</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Last Update</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -339,6 +485,28 @@ export default function DeviceValuesDisplay({
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {deviceValue.timestamp.toLocaleString()}
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleEditVariable(deviceValue)}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit variable"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVariable(deviceValue)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete variable"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -346,6 +514,27 @@ export default function DeviceValuesDisplay({
             </div>
           )}
         </div>
+      )}
+
+      {/* Modals */}
+      {selectedVariable && (
+        <VariableEditModal
+          variable={selectedVariable}
+          isOpen={editModalOpen}
+          onClose={closeEditModal}
+          onSave={handleSaveVariable}
+          isLoading={modalLoading}
+        />
+      )}
+
+      {selectedVariable && (
+        <VariableDeleteModal
+          variable={selectedVariable}
+          isOpen={deleteModalOpen}
+          onClose={closeDeleteModal}
+          onConfirm={handleDeleteVariableConfirm}
+          isLoading={modalLoading}
+        />
       )}
     </div>
   );

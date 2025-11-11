@@ -2,12 +2,22 @@
 
 import React, { useEffect, useState } from 'react';
 import { scadaAPI, DatabaseDevice, VariableRecord } from '@/lib/api';
+import VariableEditModal from './VariableEditModal';
+import VariableDeleteModal from './VariableDeleteModal';
+import { useToast } from './ToastProvider';
 
 export default function MonitoringConfig() {
+  const { showToast } = useToast();
   const [devices, setDevices] = useState<DatabaseDevice[]>([]);
   const [variables, setVariables] = useState<VariableRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedVariable, setSelectedVariable] = useState<VariableRecord | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -37,6 +47,105 @@ export default function MonitoringConfig() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle edit variable
+  const handleEditVariable = (variable: VariableRecord) => {
+    setSelectedVariable(variable);
+    setEditModalOpen(true);
+  };
+
+  // Handle delete variable
+  const handleDeleteVariable = (variable: VariableRecord) => {
+    setSelectedVariable(variable);
+    setDeleteModalOpen(true);
+  };
+
+  // Handle save variable
+  const handleSaveVariable = async (variable: VariableRecord, updates: Partial<VariableRecord>) => {
+    setModalLoading(true);
+    try {
+      const response = await scadaAPI.updateVariable(variable.id, updates);
+      if (response.success) {
+        // Update the variables list
+        setVariables(prev => prev.map(v => 
+          v.id === variable.id ? { ...v, ...updates } : v
+        ));
+        setEditModalOpen(false);
+        setSelectedVariable(null);
+        showToast({
+          type: 'success',
+          title: 'Variable Updated',
+          message: `Successfully updated variable "${variable.var_code}"`
+        });
+      } else {
+        const errorMessage = response.error || 'Failed to update variable';
+        setError(errorMessage);
+        showToast({
+          type: 'error',
+          title: 'Update Failed',
+          message: errorMessage
+        });
+      }
+    } catch {
+      const errorMessage = 'Failed to update variable';
+      setError(errorMessage);
+      showToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: errorMessage
+      });
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Handle delete variable confirm
+  const handleDeleteVariableConfirm = async (variable: VariableRecord) => {
+    setModalLoading(true);
+    try {
+      const response = await scadaAPI.deleteVariable(variable.id);
+      if (response.success) {
+        // Remove from variables list
+        setVariables(prev => prev.filter(v => v.id !== variable.id));
+        setDeleteModalOpen(false);
+        setSelectedVariable(null);
+        showToast({
+          type: 'success',
+          title: 'Variable Deleted',
+          message: `Successfully deleted variable "${variable.var_code}"`
+        });
+      } else {
+        const errorMessage = response.error || 'Failed to delete variable';
+        setError(errorMessage);
+        showToast({
+          type: 'error',
+          title: 'Delete Failed',
+          message: errorMessage
+        });
+      }
+    } catch {
+      const errorMessage = 'Failed to delete variable';
+      setError(errorMessage);
+      showToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: errorMessage
+      });
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Close modals
+  const closeEditModal = () => {
+    setEditModalOpen(false);
+    setSelectedVariable(null);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setSelectedVariable(null);
   };
 
   useEffect(() => {
@@ -156,6 +265,7 @@ export default function MonitoringConfig() {
                             <th className="pb-3 font-medium text-gray-900">Name</th>
                             <th className="pb-3 font-medium text-gray-900">Status</th>
                             <th className="pb-3 font-medium text-gray-900">Created</th>
+                            <th className="pb-3 font-medium text-gray-900">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -174,6 +284,28 @@ export default function MonitoringConfig() {
                               </td>
                               <td className="py-3 text-xs text-gray-500">
                                 {v.created_at ? new Date(v.created_at).toLocaleString() : '-'}
+                              </td>
+                              <td className="py-3">
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => handleEditVariable(v)}
+                                    className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="Edit variable"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteVariable(v)}
+                                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="Delete variable"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -196,6 +328,27 @@ export default function MonitoringConfig() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {selectedVariable && (
+        <VariableEditModal
+          variable={selectedVariable}
+          isOpen={editModalOpen}
+          onClose={closeEditModal}
+          onSave={handleSaveVariable}
+          isLoading={modalLoading}
+        />
+      )}
+
+      {selectedVariable && (
+        <VariableDeleteModal
+          variable={selectedVariable}
+          isOpen={deleteModalOpen}
+          onClose={closeDeleteModal}
+          onConfirm={handleDeleteVariableConfirm}
+          isLoading={modalLoading}
+        />
+      )}
     </div>
   );
 }

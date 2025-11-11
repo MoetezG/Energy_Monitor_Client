@@ -6,7 +6,7 @@ import DeviceValuesDisplay from '@/components/DeviceValuesDisplay';
 import { useState } from 'react';
 
 export default function MonitorPage() {
-  const [activeTab, setActiveTab] = useState<'realtime' | 'config'>('realtime');
+  const [activeTab, setActiveTab] = useState<'config' | 'realtime'>('config');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
