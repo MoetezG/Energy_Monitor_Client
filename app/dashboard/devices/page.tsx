@@ -133,52 +133,7 @@ export default function DeviceManagement() {
           </div>
         </div>
 
-        {/* Selection Summary */}
-        {selectedDevices.length > 0 && (
-          <div className="mb-8 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-blue-100">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center space-x-6 mb-4 lg:mb-0">
-                <div className="flex items-center bg-blue-50 px-4 py-2 rounded-xl">
-                  <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="text-sm font-semibold text-blue-700">
-                    {selectedDevices.length} device{selectedDevices.length > 1 ? 's' : ''} selected
-                  </span>
-                </div>
-                
-                <div className="flex items-center bg-green-50 px-4 py-2 rounded-xl">
-                  <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-sm font-semibold text-green-700">
-                    {getSelectedVariablesCount()} variable{getSelectedVariablesCount() > 1 ? 's' : ''} configured
-                  </span>
-                </div>
-              </div>
-              
-              <button
-                onClick={handleSaveToDatabase}
-                disabled={saving || getSelectedVariablesCount() === 0}
-                className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                    Saving Configuration...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    Save to Database
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
+       
 
         {/* Save Message */}
         {saveMessage && (
@@ -210,11 +165,7 @@ export default function DeviceManagement() {
                 <h3 className="text-2xl font-bold mb-2">SCADA Device Discovery</h3>
                 <p className="text-blue-100">Discover available devices and configure monitoring variables</p>
               </div>
-              <div className="p-3 bg-white/20 rounded-xl">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
+         
             </div>
           </div>
           

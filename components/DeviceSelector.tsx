@@ -10,7 +10,6 @@ interface DeviceSelectorProps {
 export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProps) {
   const [availableDevices, setAvailableDevices] = useState<string[]>([]);
   const [selectedDevices, setSelectedDevices] = useState<SelectedDevice[]>([]);
-  const [deviceVariables, setDeviceVariables] = useState<Map<string, DeviceVariable[]>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingVariables, setLoadingVariables] = useState<string | null>(null);
@@ -124,43 +123,33 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
       setSelectedDevices(updatedDevices);
       onDevicesSelected?.(updatedDevices);
     } else {
-      // Add device - first load its variables if not already loaded
-      let variables: DeviceVariable[] = [];
+      // Add device - load filtered variables (only those not in database)
+      setLoadingVariables(deviceId);
       
-      if (!deviceVariables.has(deviceId)) {
-        setLoadingVariables(deviceId);
-        
-        try {
-          const response = await scadaAPI.getDeviceValues([deviceId]);
-          if (response.success && response.data) {
-            variables = response.data.values.variable;
-            setDeviceVariables(prev => new Map(prev).set(deviceId, variables));
-          } else {
-            setError(`Failed to load variables for device ${deviceId}`);
-            setLoadingVariables(null);
-            return; // Don't add device if variables failed to load
-          }
-        } catch {
-          setError(`Network error while loading variables for device ${deviceId}`);
-          setLoadingVariables(null);
-          return; // Don't add device if variables failed to load
-        } finally {
-          setLoadingVariables(null);
+      try {
+        const response = await scadaAPI.getFilteredDeviceVariables([deviceId]);
+        if (response.success && response.data) {
+          const deviceData = response.data.find(d => d.deviceId === deviceId);
+          const variables = deviceData?.variables || [];
+          
+          const newDevice: SelectedDevice = {
+            id: deviceId,
+            name: deviceId,
+            variables,
+            selected: true
+          };
+          
+          const updatedDevices = [...selectedDevices, newDevice];
+          setSelectedDevices(updatedDevices);
+          onDevicesSelected?.(updatedDevices);
+        } else {
+          setError(`Failed to load variables for device ${deviceId}: ${response.error}`);
         }
-      } else {
-        variables = deviceVariables.get(deviceId) || [];
+      } catch {
+        setError(`Network error while loading variables for device ${deviceId}`);
+      } finally {
+        setLoadingVariables(null);
       }
-      
-      const newDevice: SelectedDevice = {
-        id: deviceId,
-        name: deviceId,
-        variables,
-        selected: true
-      };
-      
-      const updatedDevices = [...selectedDevices, newDevice];
-      setSelectedDevices(updatedDevices);
-      onDevicesSelected?.(updatedDevices);
     }
   };
 
@@ -237,9 +226,7 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
         {availableDevices.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 mx-auto mb-4 text-gray-300">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
+              
             </div>
             <h4 className="text-lg font-medium text-gray-900 mb-2">No devices available</h4>
             <p className="text-gray-500">Check your SCADA connection</p>
@@ -266,7 +253,7 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
                       <p className="text-sm text-gray-500 mt-1">SCADA Device</p>
                       {isSelected && (
                         <p className="text-xs text-blue-600 mt-2 font-medium">
-                          {getSelectedVariablesForDevice(deviceId).length} variables selected
+                          {getSelectedVariablesForDevice(deviceId).length} new variables selected
                         </p>
                       )}
                     </div>
@@ -302,7 +289,10 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-semibold text-gray-900">Selected Devices & Variables</h3>
-              <p className="text-sm text-gray-500 mt-1">Save selected variables to database for automatic monitoring</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Only variables not yet in the database are shown to avoid duplicates. 
+                Save selected variables for automatic monitoring.
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               {saveMessage && (
@@ -342,7 +332,7 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
                   <div className="flex items-center justify-between">
                     <h4 className="text-lg font-medium text-gray-900">{device.id}</h4>
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                      {getSelectedVariablesForDevice(device.id).length} of {device.variables.length} variables selected
+                      {getSelectedVariablesForDevice(device.id).length} of {device.variables.length} new variables selected
                     </span>
                   </div>
                 </div>
@@ -378,10 +368,11 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
                     <div className="text-center py-8">
                       <div className="w-12 h-12 mx-auto mb-3 text-gray-300">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <p className="text-gray-500">No variables available for this device</p>
+                      <p className="text-gray-500 mb-1">No new variables available</p>
+                      <p className="text-xs text-gray-400">All variables for this device are already in the database</p>
                     </div>
                   )}
                 </div>

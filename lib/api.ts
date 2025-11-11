@@ -91,16 +91,7 @@ export interface VariableRecord {
   created_at?: string;
 }
 
-export interface VariableRecord {
-  id: number;
-  device_id: number;
-  var_code: string;
-  name?: string;
-  unit?: string;
-  enabled?: boolean;
-  meta?: unknown;
-  created_at?: string;
-}
+
 
 class ApiClient {
   private baseURL: string;
@@ -276,11 +267,7 @@ export const scadaAPI = {
       meta: JSON.stringify({ selected: d.selected })
     });
 
-    // Workaround: server controller has a bug where it handles arrays but then
-    // also calls the create function with the whole array again. If we POST an
-    // array even for a single device, the controller will attempt to create it
-    // twice and the second call will fail. To avoid triggering that bug, send
-    // a single object when adding a single device.
+
     if (Array.isArray(devices)) {
       const deviceData = devices.map(normalize);
       if (deviceData.length === 1) {
@@ -305,16 +292,75 @@ export const scadaAPI = {
     return apiClient.get(`/variables/${deviceId}${qp}`);
   },
 
-  // Get all variables from DB
   getVariableList: async (): Promise<ApiResponse<VariableRecord[]>> => {
     return apiClient.get('/variables');
   },
 
-  // Add variables to the database. Accepts either single variable or an array.
+
   addVariablesToDatabase: async (
     variables: DeviceVariablePayload[] | DeviceVariablePayload
   ): Promise<ApiResponse<{ message: string }>> => {
     return apiClient.post('/variables', variables as unknown as Record<string, unknown>[]);
+  },
+
+  // Get filtered device variables (SCADA variables not in database)
+  getFilteredDeviceVariables: async (deviceIds: string[]): Promise<ApiResponse<{ deviceId: string, variables: DeviceVariable[] }[]>> => {
+    try {
+      // Get database devices and variables first
+      const dbDevicesResponse = await scadaAPI.getDatabaseDevices();
+      const dbVariablesResponse = await scadaAPI.getVariableList();
+      
+      const dbDevices: DatabaseDevice[] = dbDevicesResponse.success && dbDevicesResponse.data ? 
+        (Array.isArray(dbDevicesResponse.data) ? dbDevicesResponse.data : [dbDevicesResponse.data]) : [];
+      
+      const dbVariables: VariableRecord[] = dbVariablesResponse.success && dbVariablesResponse.data ?
+        (Array.isArray(dbVariablesResponse.data) ? dbVariablesResponse.data : [dbVariablesResponse.data]) : [];
+
+      // Process each device individually
+      const filteredDevices = await Promise.all(deviceIds.map(async (deviceId) => {
+        // Get SCADA variables for this specific device
+        const scadaResponse = await scadaAPI.getDeviceValues([deviceId]);
+        
+        let scadaVariables: DeviceVariable[] = [];
+        if (scadaResponse.success && scadaResponse.data) {
+          scadaVariables = scadaResponse.data.values.variable || [];
+        }
+        
+        // Find corresponding database device
+        const dbDevice = dbDevices.find(d => d.scada_id === deviceId);
+        
+        if (!dbDevice) {
+          // Device not in database, return all variables
+          return {
+            deviceId,
+            variables: scadaVariables
+          };
+        }
+
+        // Filter out variables that already exist in database
+        const filteredVariables = scadaVariables.filter(scadaVar => {
+          const existsInDb = dbVariables.some(dbVar => 
+            dbVar.device_id === dbDevice.id && dbVar.var_code === scadaVar.id
+          );
+          return !existsInDb;
+        });
+
+        return {
+          deviceId,
+          variables: filteredVariables
+        };
+      }));
+
+      return {
+        success: true,
+        data: filteredDevices
+      };
+    } catch {
+      return {
+        success: false,
+        error: 'Network error while filtering device variables'
+      };
+    }
   },
 };
 
