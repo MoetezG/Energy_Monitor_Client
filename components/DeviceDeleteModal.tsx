@@ -1,26 +1,28 @@
 'use client';
 
 import React from 'react';
-import { VariableRecord } from '@/lib/api';
+import { DatabaseDevice } from '@/lib/api';
 
-interface VariableDeleteModalProps {
-  variable: VariableRecord | null;
+interface DeviceDeleteModalProps {
+  device: DatabaseDevice | null;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (variable: VariableRecord) => Promise<void>;
+  onConfirm: (device: DatabaseDevice) => Promise<void>;
   isLoading: boolean;
+  variableCount?: number;
 }
 
-export default function VariableDeleteModal({
-  variable,
+export default function DeviceDeleteModal({
+  device,
   isOpen,
   onClose,
   onConfirm,
-  isLoading
-}: VariableDeleteModalProps) {
+  isLoading,
+  variableCount = 0
+}: DeviceDeleteModalProps) {
   const handleConfirm = async () => {
-    if (variable) {
-      await onConfirm(variable);
+    if (device) {
+      await onConfirm(device);
     }
   };
 
@@ -30,7 +32,7 @@ export default function VariableDeleteModal({
     }
   };
 
-  if (!isOpen || !variable) return null;
+  if (!isOpen || !device) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -52,34 +54,49 @@ export default function VariableDeleteModal({
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">Delete Variable</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Device</h3>
                 <p className="text-sm text-gray-600">This action cannot be undone</p>
               </div>
             </div>
 
-            {/* Variable Info */}
+            {/* Device Info */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-xs font-medium text-red-600">VARIABLE TO DELETE</span>
+                <span className="text-xs font-medium text-red-600">DEVICE TO DELETE</span>
               </div>
               <div className="space-y-1">
                 <p className="font-semibold text-gray-900">
-                  {variable.name || variable.var_code}
+                  {device.name || device.scada_id}
                 </p>
-                <p className="font-mono text-sm text-gray-700">{variable.var_code}</p>
+                <p className="font-mono text-sm text-gray-700">SCADA ID: {device.scada_id}</p>
                 <div className="flex items-center space-x-4 text-xs text-gray-600">
-                  <span>Device ID: {variable.device_id}</span>
-                  <span>Variable ID: {variable.id}</span>
-                  {variable.unit && <span>Unit: {variable.unit}</span>}
+                  <span>Database ID: {device.id}</span>
+                  {device.created_at && (
+                    <span>Added: {new Date(device.created_at).toLocaleDateString()}</span>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Warning */}
-            <div className="mb-6">
+            <div className="mb-6 space-y-3">
               <p className="text-sm text-gray-700">
-                Are you sure you want to delete this variable? This will remove all monitoring data and configurations associated with it.
+                Are you sure you want to delete this device? This will remove:
               </p>
+              <ul className="text-sm text-gray-600 space-y-1 ml-4">
+                <li className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full mr-2"></span>
+                  The device from monitoring configuration
+                </li>
+                <li className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full mr-2"></span>
+                  All {variableCount} variable{variableCount !== 1 ? 's' : ''} associated with this device
+                </li>
+                <li className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full mr-2"></span>
+                  All monitoring data and configurations
+                </li>
+              </ul>
             </div>
 
             {/* Action Buttons */}
@@ -100,7 +117,7 @@ export default function VariableDeleteModal({
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                 ) : (
-                  'Delete Variable'
+                  'Delete Device'
                 )}
               </button>
             </div>

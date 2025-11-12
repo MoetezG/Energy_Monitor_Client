@@ -7,19 +7,92 @@ interface DeviceSelectorProps {
   onDevicesSelected?: (devices: SelectedDevice[]) => void;
 }
 
+interface DeviceDeleteModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (device: DatabaseDevice) => void;
+  device: DatabaseDevice | null;
+  loading: boolean;
+}
+
+function DeviceDeleteModal({ isOpen, onClose, onConfirm, device, loading }: DeviceDeleteModalProps) {
+  if (!isOpen || !device) return null;
+
+  return (
+    <div className="fixed inset-0 backdrop:blur-3xl flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex items-center mb-4">
+          <svg className="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-9-7a9 9 0 1118 0 9 9 0 01-18 0z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-gray-900">Delete Device</h3>
+        </div>
+        
+        <p className="text-gray-600 mb-6">
+          Are you sure you want to delete device <strong>{device.name}</strong> (ID: {device.scada_id})? 
+          This will also delete all associated variables and their historical data. This action cannot be undone.
+        </p>
+        
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(device)}
+            disabled={loading}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center space-x-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Deleting...</span>
+              </>
+            ) : (
+              <span>Delete Device</span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProps) {
   const [availableDevices, setAvailableDevices] = useState<string[]>([]);
   const [selectedDevices, setSelectedDevices] = useState<SelectedDevice[]>([]);
+  const [databaseDevices, setDatabaseDevices] = useState<DatabaseDevice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingVariables, setLoadingVariables] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deviceToDelete, setDeviceToDelete] = useState<DatabaseDevice | null>(null);
+  const [deletingDevice, setDeletingDevice] = useState(false);
 
   // Load available devices on component mount
   useEffect(() => {
     loadDevices();
+    loadDatabaseDevices();
   }, []);
+
+  const loadDatabaseDevices = async () => {
+    try {
+      const response = await scadaAPI.getDatabaseDevices();
+      if (response.success && response.data) {
+        const devices = Array.isArray(response.data) ? response.data : [response.data];
+        setDatabaseDevices(devices);
+      }
+    } catch {
+      // Silently fail, as this is for additional functionality
+    }
+  };
 
   const loadDevices = async () => {
     setLoading(true);
@@ -81,17 +154,20 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
         const toCreate: DeviceVariablePayload[] = [];
 
         for (const v of selectedVars) {
-          const varCode =  v.id;
+          const varCode =  v.idEx;
           const existingVarResp = await scadaAPI.getVariableByDeviceAndCode(Number(dbDevice.id), varCode);
           const exists = existingVarResp.success && existingVarResp.data && (existingVarResp.data as VariableRecord)?.id;
           if (!exists) {
             toCreate.push({
               device_id: Number(dbDevice.id),
               var_code: varCode,
-              name: v.id,
-              unit: '',
+              name: v.title || v.idEx,
+              unit: v.measureUnits || '',
               enabled: true,
-              meta: { value: v.value }
+              meta: { 
+                value: v.value,
+                valueInfo: v.valueInfo || null
+              }
             });
           }
         }
@@ -131,7 +207,7 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
         if (response.success && response.data) {
           const deviceData = response.data.find(d => d.deviceId === deviceId);
           const variables = deviceData?.variables || [];
-          
+          console.log('Filtered Variables for device', deviceId, ':', variables);      
           const newDevice: SelectedDevice = {
             id: deviceId,
             name: deviceId,
@@ -153,13 +229,52 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
     }
   };
 
+  // Handle delete device button click
+  const handleDeleteDeviceClick = (deviceId: string) => {
+    const dbDevice = databaseDevices.find(d => d.scada_id === deviceId);
+    if (dbDevice) {
+      setDeviceToDelete(dbDevice);
+      setDeleteModalOpen(true);
+    }
+  };
+
+  // Handle delete device confirmation
+  const handleDeleteDeviceConfirm = async (device: DatabaseDevice) => {
+    setDeletingDevice(true);
+    setError(null);
+    
+    try {
+      const response = await scadaAPI.deleteDevice(device.id);
+      if (response.success) {
+        // Remove from database devices list
+        setDatabaseDevices(prev => prev.filter(d => d.id !== device.id));
+        
+        // Remove from selected devices if present
+        setSelectedDevices(prev => prev.filter(d => d.id !== device.scada_id));
+        
+        setDeleteModalOpen(false);
+        setDeviceToDelete(null);
+        setSaveMessage(`Device "${device.name}" deleted successfully`);
+        
+        // Clear the success message after 3 seconds
+        setTimeout(() => setSaveMessage(null), 3000);
+      } else {
+        setError(response.error || `Failed to delete device ${device.name}`);
+      }
+    } catch {
+      setError(`Network error while deleting device ${device.name}`);
+    } finally {
+      setDeletingDevice(false);
+    }
+  };
+
   const handleVariableToggle = (deviceId: string, variableId: string) => {
     // Toggle locally first
     setSelectedDevices(prev => 
       prev.map(device => {
         if (device.id === deviceId) {
           const updatedVariables = device.variables.map(variable => 
-            variable.id === variableId 
+            variable.idEx === variableId 
               ? { ...variable, selected: !(variable.selected || false) }
               : variable
           );
@@ -236,44 +351,72 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
             {availableDevices.map(deviceId => {
               const isSelected = selectedDevices.some(d => d.id === deviceId);
               const isLoadingVars = loadingVariables === deviceId;
+              const isInDatabase = databaseDevices.some(d => d.scada_id === deviceId);
               
               return (
                 <div 
                   key={deviceId}
-                  className={`border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                  className={`border-2 rounded-lg p-4 transition-all duration-200 relative ${
                     isSelected 
                       ? 'border-blue-500 bg-blue-50 shadow-md' 
                       : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                   }`}
-                  onClick={() => !isLoadingVars && handleDeviceToggle(deviceId)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{deviceId}</h4>
-                      <p className="text-sm text-gray-500 mt-1">SCADA Device</p>
-                      {isSelected && (
-                        <p className="text-xs text-blue-600 mt-2 font-medium">
-                          {getSelectedVariablesForDevice(deviceId).length} new variables selected
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center">
-                      {isLoadingVars ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                      ) : (
-                        <div className={`w-5 h-5 rounded border-2 ${
-                          isSelected 
-                            ? 'bg-blue-600 border-blue-600' 
-                            : 'border-gray-300'
-                        }`}>
-                          {isSelected && (
-                            <svg className="w-3 h-3 text-white m-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
+                  {/* Delete button for devices in database */}
+                  {isInDatabase && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDeviceClick(deviceId);
+                      }}
+                      className="absolute top-2 right-2 p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
+                      title="Delete device from database"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                  
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => !isLoadingVars && handleDeviceToggle(deviceId)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 pr-8">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-semibold text-gray-900">{deviceId}</h4>
+                          {isInDatabase && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              In DB
+                            </span>
                           )}
                         </div>
-                      )}
+                        <p className="text-sm text-gray-500 mt-1">SCADA Device</p>
+                        {isSelected && (
+                          <p className="text-xs text-blue-600 mt-2 font-medium">
+                            {getSelectedVariablesForDevice(deviceId).length} new variables selected
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center">
+                        {isLoadingVars ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                        ) : (
+                          <div className={`w-5 h-5 rounded border-2 ${
+                            isSelected 
+                              ? 'bg-blue-600 border-blue-600' 
+                              : 'border-gray-300'
+                          }`}>
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-white m-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -342,7 +485,7 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
                     <div className="space-y-3">
                       {device.variables.map(variable => (
                         <div 
-                          key={variable.id}
+                          key={variable.idEx}
                           className={`border rounded-lg p-4 transition-all duration-200 ${
                             variable.selected ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'
                           }`}
@@ -352,11 +495,19 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
                               <input
                                 type="checkbox"
                                 checked={variable.selected || false}
-                                onChange={() => handleVariableToggle(device.id, variable.id)}
+                                onChange={() => handleVariableToggle(device.id, variable.idEx)}
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">{variable.id}</p>
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {variable.title || variable.idEx}
+                                </p>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <p className="text-xs text-gray-500">ID: {variable.idEx}</p>
+                                  {variable.measureUnits && (
+                                    <p className="text-xs text-gray-500">Unit: {variable.measureUnits}</p>
+                                  )}
+                                </div>
                                 <p className="text-xs text-gray-500 mt-1">Current value: {String(variable.value)}</p>
                               </div>
                             </label>
@@ -381,6 +532,18 @@ export default function DeviceSelector({ onDevicesSelected }: DeviceSelectorProp
           </div>
         </div>
       )}
+
+      {/* Delete Device Modal */}
+      <DeviceDeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeviceToDelete(null);
+        }}
+        onConfirm={handleDeleteDeviceConfirm}
+        device={deviceToDelete}
+        loading={deletingDevice}
+      />
     </div>
   );
 }

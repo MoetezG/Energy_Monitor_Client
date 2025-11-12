@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { scadaAPI, DatabaseDevice, VariableRecord } from '@/lib/api';
 import VariableEditModal from './VariableEditModal';
 import VariableDeleteModal from './VariableDeleteModal';
+import DeviceDeleteModal from './DeviceDeleteModal';
 import { useToast } from './ToastProvider';
 
 export default function MonitoringConfig() {
@@ -16,7 +17,9 @@ export default function MonitoringConfig() {
   // Modal states
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deviceDeleteModalOpen, setDeviceDeleteModalOpen] = useState(false);
   const [selectedVariable, setSelectedVariable] = useState<VariableRecord | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<DatabaseDevice | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   const loadData = async () => {
@@ -59,6 +62,12 @@ export default function MonitoringConfig() {
   const handleDeleteVariable = (variable: VariableRecord) => {
     setSelectedVariable(variable);
     setDeleteModalOpen(true);
+  };
+
+  // Handle delete device
+  const handleDeleteDevice = (device: DatabaseDevice) => {
+    setSelectedDevice(device);
+    setDeviceDeleteModalOpen(true);
   };
 
   // Handle save variable
@@ -137,6 +146,45 @@ export default function MonitoringConfig() {
     }
   };
 
+  // Handle delete device confirm
+  const handleDeleteDeviceConfirm = async (device: DatabaseDevice) => {
+    setModalLoading(true);
+    try {
+      const response = await scadaAPI.deleteDevice(device.id);
+      if (response.success) {
+        // Remove device from devices list
+        setDevices(prev => prev.filter(d => d.id !== device.id));
+        // Remove all variables associated with this device
+        setVariables(prev => prev.filter(v => v.device_id !== device.id));
+        setDeviceDeleteModalOpen(false);
+        setSelectedDevice(null);
+        showToast({
+          type: 'success',
+          title: 'Device Deleted',
+          message: `Successfully deleted device "${device.name || device.scada_id}" and all its variables`
+        });
+      } else {
+        const errorMessage = response.error || 'Failed to delete device';
+        setError(errorMessage);
+        showToast({
+          type: 'error',
+          title: 'Delete Failed',
+          message: errorMessage
+        });
+      }
+    } catch {
+      const errorMessage = 'Failed to delete device';
+      setError(errorMessage);
+      showToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: errorMessage
+      });
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   // Close modals
   const closeEditModal = () => {
     setEditModalOpen(false);
@@ -146,6 +194,11 @@ export default function MonitoringConfig() {
   const closeDeleteModal = () => {
     setDeleteModalOpen(false);
     setSelectedVariable(null);
+  };
+
+  const closeDeviceDeleteModal = () => {
+    setDeviceDeleteModalOpen(false);
+    setSelectedDevice(null);
   };
 
   useEffect(() => {
@@ -251,6 +304,15 @@ export default function MonitoringConfig() {
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         {varsByDevice.get(device.id)?.length || 0} variables
                       </span>
+                      <button
+                        onClick={() => handleDeleteDevice(device)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete device"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -347,6 +409,17 @@ export default function MonitoringConfig() {
           onClose={closeDeleteModal}
           onConfirm={handleDeleteVariableConfirm}
           isLoading={modalLoading}
+        />
+      )}
+
+      {selectedDevice && (
+        <DeviceDeleteModal
+          device={selectedDevice}
+          isOpen={deviceDeleteModalOpen}
+          onClose={closeDeviceDeleteModal}
+          onConfirm={handleDeleteDeviceConfirm}
+          isLoading={modalLoading}
+          variableCount={varsByDevice.get(selectedDevice.id)?.length || 0}
         />
       )}
     </div>

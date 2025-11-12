@@ -21,7 +21,6 @@ export default function VariableEditModal({
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [enabled, setEnabled] = useState(true);
-  const [samplePeriodSeconds, setSamplePeriodSeconds] = useState(60);
   const [lastVariableId, setLastVariableId] = useState<number | null>(null);
 
   // Reset form when variable changes
@@ -29,7 +28,6 @@ export default function VariableEditModal({
     setName(variable.name || '');
     setUnit(variable.unit || '');
     setEnabled(variable.enabled ?? true);
-    setSamplePeriodSeconds(variable.sample_period_seconds || 60);
     setLastVariableId(variable.id);
   }
 
@@ -39,8 +37,7 @@ export default function VariableEditModal({
     const updates: Partial<VariableRecord> = {
       name: name.trim() || undefined,
       unit: unit.trim() || undefined,
-      enabled,
-      sample_period_seconds: samplePeriodSeconds
+      enabled
     };
 
     await onSave(variable, updates);
@@ -132,25 +129,6 @@ export default function VariableEditModal({
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Measurement unit for this variable
-                </p>
-              </div>
-
-              {/* Sample Period */}
-              <div>
-                <label htmlFor="samplePeriod" className="block text-sm font-medium text-gray-700 mb-2">
-                  Sample Period (seconds)
-                </label>
-                <input
-                  type="number"
-                  id="samplePeriod"
-                  value={samplePeriodSeconds}
-                  onChange={(e) => setSamplePeriodSeconds(Math.max(1, parseInt(e.target.value) || 60))}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={isLoading}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  How often to sample this variable
                 </p>
               </div>
 

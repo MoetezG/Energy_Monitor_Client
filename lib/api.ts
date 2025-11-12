@@ -46,14 +46,20 @@ export interface ScadaDeviceList {
 }
 
 export interface DeviceVariable {
-  id: string;
+  idEx: string;
+  title?: string;
+  measureUnits?: string;
   value: number | string | boolean;
   selected?: boolean;
+  valueInfo?: {
+    ctrlType?: string;
+    type?: number;
+  };
 }
 
 export interface DeviceValues {
-  values: {
-    variable: DeviceVariable[];
+  varInfo: {
+    var: DeviceVariable[];
   };
 }
 
@@ -88,7 +94,6 @@ export interface VariableRecord {
   name?: string;
   unit?: string;
   enabled?: boolean;
-  sample_period_seconds?: number;
   meta?: unknown;
   created_at?: string;
 }
@@ -106,7 +111,7 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
       timeout: 30000, // 30 second timeout for SCADA operations
-      withCredentials: true, // Don't send cookies unless needed
+      withCredentials: true, 
     });
 
     // Get token from localStorage if available
@@ -321,6 +326,11 @@ export const scadaAPI = {
     return apiClient.delete(`/variables/${id}`);
   },
 
+  // Delete a device and all its variables
+  deleteDevice: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiClient.delete(`/devices/${id}`);
+  },
+
   // Get filtered device variables (SCADA variables not in database)
   getFilteredDeviceVariables: async (deviceIds: string[]): Promise<ApiResponse<{ deviceId: string, variables: DeviceVariable[] }[]>> => {
     try {
@@ -338,11 +348,14 @@ export const scadaAPI = {
       const filteredDevices = await Promise.all(deviceIds.map(async (deviceId) => {
         // Get SCADA variables for this specific device
         const scadaResponse = await scadaAPI.getDeviceValues([deviceId]);
-        
+      
+ 
         let scadaVariables: DeviceVariable[] = [];
         if (scadaResponse.success && scadaResponse.data) {
-          scadaVariables = scadaResponse.data.values.variable || [];
+          scadaVariables = scadaResponse.data.varInfo.var || [];
         }
+        console.log('SCADA Variables for device', deviceId, ':', scadaVariables);
+      
         
         // Find corresponding database device
         const dbDevice = dbDevices.find(d => d.scada_id === deviceId);
@@ -358,7 +371,7 @@ export const scadaAPI = {
         // Filter out variables that already exist in database
         const filteredVariables = scadaVariables.filter(scadaVar => {
           const existsInDb = dbVariables.some(dbVar => 
-            dbVar.device_id === dbDevice.id && dbVar.var_code === scadaVar.id
+            dbVar.device_id === dbDevice.id && dbVar.var_code === scadaVar.idEx
           );
           return !existsInDb;
         });
@@ -380,9 +393,7 @@ export const scadaAPI = {
       };
     }
   },
+
 };
 
-
-
- 
 export default apiClient;

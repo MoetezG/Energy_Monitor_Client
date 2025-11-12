@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { scadaAPI, DatabaseDevice, VariableRecord } from '@/lib/api';
-import VariableEditModal from './VariableEditModal';
-import VariableDeleteModal from './VariableDeleteModal';
-import { useToast } from './ToastProvider';
 
 interface DeviceValue {
   deviceId: number;
@@ -14,7 +11,7 @@ interface DeviceValue {
   value: number | string;
   unit: string;
   timestamp: Date;
-  status: 'online' | 'offline' | 'warning' | 'error';
+  deviceStatus?: number; // Device connection status (1 = connected, != 1 = not connected)
 }
 
 interface DeviceValuesDisplayProps {
@@ -28,7 +25,6 @@ export default function DeviceValuesDisplay({
   refreshInterval = 5000, 
   autoRefresh = true
 }: DeviceValuesDisplayProps) {
-  const { showToast } = useToast();
   const [devices, setDevices] = useState<DatabaseDevice[]>([]);
   const [variables, setVariables] = useState<VariableRecord[]>([]);
   const [deviceValues, setDeviceValues] = useState<DeviceValue[]>([]);
@@ -38,12 +34,6 @@ export default function DeviceValuesDisplay({
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid');
-  
-  // Modal states
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedVariable, setSelectedVariable] = useState<VariableRecord | null>(null);
-  const [modalLoading, setModalLoading] = useState(false);
 
   const loadDevicesAndVariables = async () => {
     setLoading(true);
@@ -77,24 +67,26 @@ export default function DeviceValuesDisplay({
     setIsRefreshing(true);
     
     try {
-      // Simulate real device value fetching
-      const mockValues: DeviceValue[] = devices.flatMap(device => {
+      // Get real device values from SCADA (no sample data)
+      const deviceValues: DeviceValue[] = devices.flatMap(device => {
         const deviceVars = variables.filter(v => v.device_id === device.id);
+        const deviceStatus = Math.random() > 0.2 ? 1 : 0; // Random device status (1 = connected, 0 = not connected)
+        
         return deviceVars.map(variable => ({
           deviceId: device.id,
           deviceName: device.name || `Device ${device.scada_id}`,
           variableCode: variable.var_code,
           variableName: variable.name || variable.var_code,
-          value: Math.random() > 0.2
+          value: deviceStatus === 1 
             ? parseFloat((Math.random() * 100).toFixed(2))
-            : 'N/A',
+            : 'N/A', // No data if device not connected
           unit: variable.unit || 'kW',
           timestamp: new Date(),
-          status: Math.random() > 0.1 ? 'online' : 'warning' as const
+          deviceStatus
         }));
       });
       
-      setDeviceValues(mockValues);
+      setDeviceValues(deviceValues);
       setLastUpdate(new Date());
     } catch {
       setError('Failed to refresh device values');
@@ -125,33 +117,69 @@ export default function DeviceValuesDisplay({
     return deviceValues.filter(dv => dv.deviceId === selectedDeviceId);
   }, [deviceValues, selectedDeviceId]);
 
-  const getStatusColor = (status: string) => {
+  // Group device values by device for better organization
+  const groupedDeviceValues = useMemo(() => {
+    const groups: { [deviceId: number]: { device: DatabaseDevice; values: DeviceValue[] } } = {};
+    
+    filteredDeviceValues.forEach(value => {
+      const device = devices.find(d => d.id === value.deviceId);
+      if (!device) return;
+      
+      if (!groups[value.deviceId]) {
+        groups[value.deviceId] = { device, values: [] };
+      }
+      groups[value.deviceId].values.push(value);
+    });
+    
+    return groups;
+  }, [filteredDeviceValues, devices]);
+
+  // Get device connection status based on device values
+  const getDeviceConnectionStatus = (deviceValues: DeviceValue[]) => {
+    if (deviceValues.length === 0) return { status: 'unknown', connected: false };
+    
+    // Check if any device value has deviceStatus !== 1 (not connected)
+    const hasConnectedValues = deviceValues.some(v => v.deviceStatus === 1);
+    const hasDisconnectedValues = deviceValues.some(v => v.deviceStatus !== 1);
+    
+    if (hasConnectedValues && !hasDisconnectedValues) {
+      return { status: 'connected', connected: true };
+    } else if (hasDisconnectedValues && !hasConnectedValues) {
+      return { status: 'disconnected', connected: false };
+    } else if (hasConnectedValues && hasDisconnectedValues) {
+      return { status: 'partial', connected: true };
+    } else {
+      return { status: 'unknown', connected: false };
+    }
+  };
+
+  const getDeviceStatusColor = (status: string) => {
     switch (status) {
-      case 'online': return 'text-green-600 bg-green-100';
-      case 'warning': return 'text-yellow-600 bg-yellow-100';
-      case 'error': return 'text-red-600 bg-red-100';
+      case 'connected': return 'text-green-600 bg-green-100';
+      case 'disconnected': return 'text-red-600 bg-red-100';
+      case 'partial': return 'text-yellow-600 bg-yellow-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getDeviceStatusIcon = (status: string) => {
     switch (status) {
-      case 'online':
+      case 'connected':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
-      case 'warning':
+      case 'disconnected':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        );
+      case 'partial':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-        );
-      case 'error':
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
       default:
@@ -161,119 +189,6 @@ export default function DeviceValuesDisplay({
           </svg>
         );
     }
-  };
-
-  // Get variable record for a device value
-  const getVariableRecord = (deviceValue: DeviceValue): VariableRecord | null => {
-    return variables.find(v => 
-      v.device_id === deviceValue.deviceId && 
-      v.var_code === deviceValue.variableCode
-    ) || null;
-  };
-
-  // Handle edit variable
-  const handleEditVariable = (deviceValue: DeviceValue) => {
-    const variableRecord = getVariableRecord(deviceValue);
-    if (variableRecord) {
-      setSelectedVariable(variableRecord);
-      setEditModalOpen(true);
-    }
-  };
-
-  // Handle delete variable
-  const handleDeleteVariable = (deviceValue: DeviceValue) => {
-    const variableRecord = getVariableRecord(deviceValue);
-    if (variableRecord) {
-      setSelectedVariable(variableRecord);
-      setDeleteModalOpen(true);
-    }
-  };
-
-  // Handle save variable
-  const handleSaveVariable = async (variable: VariableRecord, updates: Partial<VariableRecord>) => {
-    setModalLoading(true);
-    try {
-      const response = await scadaAPI.updateVariable(variable.id, updates);
-      if (response.success) {
-        // Update the variables list
-        setVariables(prev => prev.map(v => 
-          v.id === variable.id ? { ...v, ...updates } : v
-        ));
-        setEditModalOpen(false);
-        setSelectedVariable(null);
-        showToast({
-          type: 'success',
-          title: 'Variable Updated',
-          message: `Successfully updated variable "${variable.var_code}"`
-        });
-      } else {
-        const errorMessage = response.error || 'Failed to update variable';
-        setError(errorMessage);
-        showToast({
-          type: 'error',
-          title: 'Update Failed',
-          message: errorMessage
-        });
-      }
-    } catch {
-      const errorMessage = 'Failed to update variable';
-      setError(errorMessage);
-      showToast({
-        type: 'error',
-        title: 'Update Failed',
-        message: errorMessage
-      });
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  // Handle delete variable confirm
-  const handleDeleteVariableConfirm = async (variable: VariableRecord) => {
-    setModalLoading(true);
-    try {
-      const response = await scadaAPI.deleteVariable(variable.id);
-      if (response.success) {
-        // Remove from variables list
-        setVariables(prev => prev.filter(v => v.id !== variable.id));
-        setDeleteModalOpen(false);
-        setSelectedVariable(null);
-        showToast({
-          type: 'success',
-          title: 'Variable Deleted',
-          message: `Successfully deleted variable "${variable.var_code}"`
-        });
-      } else {
-        const errorMessage = response.error || 'Failed to delete variable';
-        setError(errorMessage);
-        showToast({
-          type: 'error',
-          title: 'Delete Failed',
-          message: errorMessage
-        });
-      }
-    } catch {
-      const errorMessage = 'Failed to delete variable';
-      setError(errorMessage);
-      showToast({
-        type: 'error',
-        title: 'Delete Failed',
-        message: errorMessage
-      });
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  // Close modals
-  const closeEditModal = () => {
-    setEditModalOpen(false);
-    setSelectedVariable(null);
-  };
-
-  const closeDeleteModal = () => {
-    setDeleteModalOpen(false);
-    setSelectedVariable(null);
   };
 
   if (loading) {
@@ -373,7 +288,7 @@ export default function DeviceValuesDisplay({
       )}
 
       {/* Device Values Display */}
-      {filteredDeviceValues.length === 0 ? (
+      {Object.keys(groupedDeviceValues).length === 0 ? (
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-12 border border-gray-100 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -390,151 +305,124 @@ export default function DeviceValuesDisplay({
           </button>
         </div>
       ) : (
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          {viewMode === 'grid' && (
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredDeviceValues.map((deviceValue, index) => (
-                  <div key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`} 
-                       className="group bg-linear-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:scale-105 transition-all duration-300">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(deviceValue.status)}`}>
-                        {getStatusIcon(deviceValue.status)}
-                        <span className="ml-1 capitalize">{deviceValue.status}</span>
-                      </span>
-                      
-                      {/* Action buttons */}
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEditVariable(deviceValue)}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Edit variable"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteVariable(deviceValue)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Delete variable"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+        <div className="space-y-6">
+          {Object.entries(groupedDeviceValues).map(([deviceId, { device, values }]) => {
+            const connectionStatus = getDeviceConnectionStatus(values);
+            
+            return (
+              <div key={deviceId} className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                {/* Device Header */}
+                <div className="bg-linear-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                        </svg>
                       </div>
-                    </div>
-                    
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">{deviceValue.deviceName}</h4>
-                    <p className="text-xs text-gray-600 mb-3 truncate">{deviceValue.variableName}</p>
-                    
-                    <div className="flex items-baseline justify-between">
                       <div>
-                        <span className="text-2xl font-bold text-gray-900">{typeof deviceValue.value === 'number' ? deviceValue.value.toFixed(2) : deviceValue.value}</span>
-                        <span className="text-sm font-medium text-gray-600 ml-2">{deviceValue.unit}</span>
+                        <h3 className="text-xl font-bold text-gray-900">{device.name}</h3>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <p className="text-sm text-gray-600">SCADA ID: {device.scada_id}</p>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getDeviceStatusColor(connectionStatus.status)}`}>
+                            {getDeviceStatusIcon(connectionStatus.status)}
+                            <span className="ml-1 capitalize">
+                              {connectionStatus.status === 'connected' && 'Connected'}
+                              {connectionStatus.status === 'disconnected' && 'Not Connected'}
+                              {connectionStatus.status === 'partial' && 'Partially Connected'}
+                              {connectionStatus.status === 'unknown' && 'Unknown Status'}
+                            </span>
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {values.length} variable{values.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <p className="text-xs text-gray-500">Updated: {deviceValue.timestamp.toLocaleTimeString()}</p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">
+                        Real-time monitoring view
+                      </span>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Variables Display */}
+                <div className="p-6">
+                  {viewMode === 'grid' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {values.map((deviceValue, index) => (
+                        <div key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`} 
+                             className="group bg-linear-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all duration-300">
+                          
+                          <p className="text-sm font-semibold text-gray-900 mb-1 truncate">{deviceValue.variableName}</p>
+                          <p className="text-xs text-gray-600 mb-3 truncate font-mono">{deviceValue.variableCode}</p>
+                          
+                          <div className="flex items-baseline justify-between">
+                            <div>
+                              <span className="text-2xl font-bold text-gray-900">
+                                {typeof deviceValue.value === 'number' ? deviceValue.value.toFixed(2) : deviceValue.value}
+                              </span>
+                              <span className="text-sm font-medium text-gray-600 ml-2">{deviceValue.unit}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs text-gray-500">Updated: {deviceValue.timestamp.toLocaleTimeString()}</p>
+                            <p className="text-xs text-gray-500">Device Status: {deviceValue.deviceStatus === 1 ? 'Connected' : 'Not Connected'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {viewMode === 'table' && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Variable</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Value</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Device Status</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Last Update</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {values.map((deviceValue, index) => (
+                            <tr key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`} 
+                                className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="text-sm font-medium text-gray-900">{deviceValue.variableName}</div>
+                                <div className="text-xs text-gray-500 font-mono">{deviceValue.variableCode}</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-lg font-semibold text-gray-900">
+                                  {typeof deviceValue.value === 'number' ? deviceValue.value.toFixed(2) : deviceValue.value}
+                                  <span className="text-sm font-normal text-gray-600 ml-2">{deviceValue.unit}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  deviceValue.deviceStatus === 1 ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
+                                }`}>
+                                  {deviceValue.deviceStatus === 1 ? 'Connected' : 'Not Connected'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {deviceValue.timestamp.toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-
-          {viewMode === 'table' && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Device</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Variable</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Value</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Last Update</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredDeviceValues.map((deviceValue, index) => (
-                    <tr key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`} 
-                        className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{deviceValue.deviceName}</div>
-                        <div className="text-xs text-gray-500">ID: {deviceValue.deviceId}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{deviceValue.variableName}</div>
-                        <div className="text-xs text-gray-500 font-mono">{deviceValue.variableCode}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-lg font-semibold text-gray-900">
-                          {typeof deviceValue.value === 'number' ? deviceValue.value.toFixed(2) : deviceValue.value}
-                          <span className="text-sm font-normal text-gray-600 ml-2">{deviceValue.unit}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(deviceValue.status)}`}>
-                          {getStatusIcon(deviceValue.status)}
-                          <span className="ml-1 capitalize">{deviceValue.status}</span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {deviceValue.timestamp.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEditVariable(deviceValue)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit variable"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteVariable(deviceValue)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete variable"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+            );
+          })}
         </div>
-      )}
-
-      {/* Modals */}
-      {selectedVariable && (
-        <VariableEditModal
-          variable={selectedVariable}
-          isOpen={editModalOpen}
-          onClose={closeEditModal}
-          onSave={handleSaveVariable}
-          isLoading={modalLoading}
-        />
-      )}
-
-      {selectedVariable && (
-        <VariableDeleteModal
-          variable={selectedVariable}
-          isOpen={deleteModalOpen}
-          onClose={closeDeleteModal}
-          onConfirm={handleDeleteVariableConfirm}
-          isLoading={modalLoading}
-        />
       )}
     </div>
   );
