@@ -6,9 +6,10 @@ import { useDeviceData } from "@/hooks/useDeviceData";
 
 export default function DashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
-  
+
   // Get real data from API
-  const { devices, selectedDevices, loading, error, loadDevices } = useDeviceData();
+  const { devices, selectedDevices, loading, error, loadDevices } =
+    useDeviceData();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -68,22 +69,38 @@ export default function DashboardPage() {
                   {currentTime.toLocaleTimeString()}
                 </div>
               </div>
-              <div className={`flex items-center px-4 py-2 rounded-full border ${
-                loading ? 'bg-yellow-50 border-yellow-200' : 
-                error ? 'bg-red-50 border-red-200' : 
-                'bg-green-50 border-green-200'
-              }`}>
-                <div className={`w-3 h-3 rounded-full mr-3 shadow-lg ${
-                  loading ? 'bg-yellow-500 shadow-yellow-500/50 animate-pulse' :
-                  error ? 'bg-red-500 shadow-red-500/50' :
-                  'bg-green-500 shadow-green-500/50 animate-pulse'
-                }`}></div>
-                <span className={`text-sm font-semibold ${
-                  loading ? 'text-yellow-700' :
-                  error ? 'text-red-700' :
-                  'text-green-700'
-                }`}>
-                  {loading ? 'Connecting...' : error ? 'Connection Error' : 'System Online'}
+              <div
+                className={`flex items-center px-4 py-2 rounded-full border ${
+                  loading
+                    ? "bg-yellow-50 border-yellow-200"
+                    : error
+                    ? "bg-red-50 border-red-200"
+                    : "bg-green-50 border-green-200"
+                }`}
+              >
+                <div
+                  className={`w-3 h-3 rounded-full mr-3 shadow-lg ${
+                    loading
+                      ? "bg-yellow-500 shadow-yellow-500/50 animate-pulse"
+                      : error
+                      ? "bg-red-500 shadow-red-500/50"
+                      : "bg-green-500 shadow-green-500/50 animate-pulse"
+                  }`}
+                ></div>
+                <span
+                  className={`text-sm font-semibold ${
+                    loading
+                      ? "text-yellow-700"
+                      : error
+                      ? "text-red-700"
+                      : "text-green-700"
+                  }`}
+                >
+                  {loading
+                    ? "Connecting..."
+                    : error
+                    ? "Connection Error"
+                    : "System Online"}
                 </span>
               </div>
               <Link
@@ -168,7 +185,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex items-baseline mb-3">
                   <p className="text-4xl font-bold text-gray-900">
-                    {loading ? '...' : '--'}
+                    {loading ? "..." : "--"}
                   </p>
                   <span className="ml-2 text-xl font-semibold text-gray-600">
                     MW
@@ -188,7 +205,7 @@ export default function DashboardPage() {
                       d="M13 7l5 5m0 0l-5 5m5-5H6"
                     />
                   </svg>
-                  {loading ? 'Loading...' : 'No data available'}
+                  {loading ? "Loading..." : "No data available"}
                 </p>
               </div>
             </div>
@@ -223,15 +240,21 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex items-baseline mb-3">
                   <p className="text-4xl font-bold text-gray-900">
-                    {loading ? '...' : devices.length || '0'}
+                    {loading ? "..." : devices.length || "0"}
                   </p>
                   <span className="ml-2 text-xl font-semibold text-gray-600">
-                    {devices.length === 1 ? 'device' : 'devices'}
+                    {devices.length === 1 ? "device" : "devices"}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 flex items-center font-medium">
                   <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                  {loading ? 'Loading...' : error ? 'Connection error' : devices.length > 0 ? 'Devices discovered' : 'No devices found'}
+                  {loading
+                    ? "Loading..."
+                    : error
+                    ? "Connection error"
+                    : devices.length > 0
+                    ? "Devices discovered"
+                    : "No devices found"}
                 </p>
               </div>
             </div>
@@ -266,11 +289,9 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex items-baseline mb-3">
                   <p className="text-4xl font-bold text-gray-900">
-                    {loading ? '...' : error ? 'ERR' : 'OK'}
+                    {loading ? "..." : error ? "ERR" : "OK"}
                   </p>
-                  <span className="ml-2 text-xl font-semibold text-gray-600">
-                    
-                  </span>
+                  <span className="ml-2 text-xl font-semibold text-gray-600"></span>
                 </div>
                 <p className="text-sm text-gray-500 flex items-center font-medium">
                   <svg
@@ -286,7 +307,11 @@ export default function DashboardPage() {
                       d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                   </svg>
-                  {loading ? 'Checking status...' : error ? 'Connection error' : 'System operational'}
+                  {loading
+                    ? "Checking status..."
+                    : error
+                    ? "Connection error"
+                    : "System operational"}
                 </p>
               </div>
             </div>
@@ -321,7 +346,13 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex items-baseline mb-3">
                   <p className="text-4xl font-bold text-gray-900">
-                    {loading ? '...' : selectedDevices.reduce((total, device) => total + (device.variables?.length || 0), 0) || '0'}
+                    {loading
+                      ? "..."
+                      : selectedDevices.reduce(
+                          (total, device) =>
+                            total + (device.variables?.length || 0),
+                          0
+                        ) || "0"}
                   </p>
                   <span className="ml-2 text-xl font-semibold text-gray-600">
                     vars
@@ -341,7 +372,11 @@ export default function DashboardPage() {
                       d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                   </svg>
-                  {loading ? 'Loading...' : selectedDevices.length > 0 ? 'Variables configured' : 'No variables selected'}
+                  {loading
+                    ? "Loading..."
+                    : selectedDevices.length > 0
+                    ? "Variables configured"
+                    : "No variables selected"}
                 </p>
               </div>
             </div>
@@ -684,9 +719,11 @@ export default function DashboardPage() {
           <div className="inline-flex items-center px-6 py-3 bg-gray-100 rounded-full text-sm text-gray-600">
             <svg
               className={`w-5 h-5 mr-2 ${
-                loading ? 'text-yellow-500' : 
-                error ? 'text-red-500' : 
-                'text-green-500'
+                loading
+                  ? "text-yellow-500"
+                  : error
+                  ? "text-red-500"
+                  : "text-green-500"
               }`}
               fill="none"
               stroke="currentColor"
@@ -699,9 +736,11 @@ export default function DashboardPage() {
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            {loading ? 'Initializing system...' : 
-             error ? 'System error - check connection' : 
-             'System operational and ready for monitoring'}
+            {loading
+              ? "Initializing system..."
+              : error
+              ? "System error - check connection"
+              : "System operational and ready for monitoring"}
           </div>
         </div>
       </div>
