@@ -98,6 +98,17 @@ export interface VariableRecord {
   created_at?: string;
 }
 
+export interface SampleChartData {
+  x: string; // timestamp/date
+  y: number; // aggregated value
+}
+
+export interface ChartQueryParams {
+  startTime: string;
+  endTime: string;
+  period: 'day' | 'week' | 'month';
+}
+
 
 
 class ApiClient {
@@ -393,6 +404,20 @@ export const scadaAPI = {
       };
     }
   },
+
+  // Query params and id path param to get charts for a device
+  getDeviceCharts: async (
+    variableId: number,
+    params: ChartQueryParams
+  ): Promise<ApiResponse<SampleChartData[]>> => {
+    const queryString = new URLSearchParams({
+      startTime: params.startTime,
+      endTime: params.endTime,
+      period: params.period
+    }).toString();
+    
+    return apiClient.get(`/sample/sample-charts/${variableId}?${queryString}`);
+  }
 
 };
 
