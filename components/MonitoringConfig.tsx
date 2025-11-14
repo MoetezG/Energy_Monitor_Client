@@ -325,6 +325,7 @@ export default function MonitoringConfig() {
                           <tr className="text-left border-b border-gray-200">
                             <th className="pb-3 font-medium text-gray-900">Variable Code</th>
                             <th className="pb-3 font-medium text-gray-900">Name</th>
+                            <th className="pb-3 font-medium text-gray-900">Unit</th>
                             <th className="pb-3 font-medium text-gray-900">Status</th>
                             <th className="pb-3 font-medium text-gray-900">Created</th>
                             <th className="pb-3 font-medium text-gray-900">Actions</th>
@@ -335,6 +336,7 @@ export default function MonitoringConfig() {
                             <tr key={v.id} className="hover:bg-gray-50">
                               <td className="py-3 font-mono text-sm">{v.var_code}</td>
                               <td className="py-3">{v.name || '-'}</td>
+                              <td className="py-3">{v.unit || '-'}</td>
                               <td className="py-3">
                                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                   v.enabled 
