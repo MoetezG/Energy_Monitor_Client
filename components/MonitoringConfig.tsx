@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { scadaAPI, DatabaseDevice, VariableRecord } from '@/lib/api';
-import VariableEditModal from './VariableEditModal';
-import VariableDeleteModal from './VariableDeleteModal';
-import DeviceDeleteModal from './DeviceDeleteModal';
-import { useToast } from './ToastProvider';
+import React, { useEffect, useState } from "react";
+import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
+import VariableEditModal from "./VariableEditModal";
+import VariableDeleteModal from "./VariableDeleteModal";
+import DeviceDeleteModal from "./DeviceDeleteModal";
+import { useToast } from "./ToastProvider";
 
 export default function MonitoringConfig() {
   const { showToast } = useToast();
@@ -18,8 +18,11 @@ export default function MonitoringConfig() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deviceDeleteModalOpen, setDeviceDeleteModalOpen] = useState(false);
-  const [selectedVariable, setSelectedVariable] = useState<VariableRecord | null>(null);
-  const [selectedDevice, setSelectedDevice] = useState<DatabaseDevice | null>(null);
+  const [selectedVariable, setSelectedVariable] =
+    useState<VariableRecord | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<DatabaseDevice | null>(
+    null
+  );
   const [modalLoading, setModalLoading] = useState(false);
 
   const loadData = async () => {
@@ -34,7 +37,9 @@ export default function MonitoringConfig() {
 
       if (devResp.success && devResp.data) {
         const raw = devResp.data as unknown;
-        const devs: DatabaseDevice[] = Array.isArray(raw) ? raw as DatabaseDevice[] : [raw as DatabaseDevice];
+        const devs: DatabaseDevice[] = Array.isArray(raw)
+          ? (raw as DatabaseDevice[])
+          : [raw as DatabaseDevice];
         setDevices(devs);
       } else {
         setDevices([]);
@@ -46,7 +51,7 @@ export default function MonitoringConfig() {
         setVariables([]);
       }
     } catch {
-      setError('Failed to load monitoring data');
+      setError("Failed to load monitoring data");
     } finally {
       setLoading(false);
     }
@@ -71,38 +76,41 @@ export default function MonitoringConfig() {
   };
 
   // Handle save variable
-  const handleSaveVariable = async (variable: VariableRecord, updates: Partial<VariableRecord>) => {
+  const handleSaveVariable = async (
+    variable: VariableRecord,
+    updates: Partial<VariableRecord>
+  ) => {
     setModalLoading(true);
     try {
       const response = await scadaAPI.updateVariable(variable.id, updates);
       if (response.success) {
         // Update the variables list
-        setVariables(prev => prev.map(v => 
-          v.id === variable.id ? { ...v, ...updates } : v
-        ));
+        setVariables((prev) =>
+          prev.map((v) => (v.id === variable.id ? { ...v, ...updates } : v))
+        );
         setEditModalOpen(false);
         setSelectedVariable(null);
         showToast({
-          type: 'success',
-          title: 'Variable Updated',
-          message: `Successfully updated variable "${variable.var_code}"`
+          type: "success",
+          title: "Variable Updated",
+          message: `Successfully updated variable "${variable.var_code}"`,
         });
       } else {
-        const errorMessage = response.error || 'Failed to update variable';
+        const errorMessage = response.error || "Failed to update variable";
         setError(errorMessage);
         showToast({
-          type: 'error',
-          title: 'Update Failed',
-          message: errorMessage
+          type: "error",
+          title: "Update Failed",
+          message: errorMessage,
         });
       }
     } catch {
-      const errorMessage = 'Failed to update variable';
+      const errorMessage = "Failed to update variable";
       setError(errorMessage);
       showToast({
-        type: 'error',
-        title: 'Update Failed',
-        message: errorMessage
+        type: "error",
+        title: "Update Failed",
+        message: errorMessage,
       });
     } finally {
       setModalLoading(false);
@@ -116,30 +124,30 @@ export default function MonitoringConfig() {
       const response = await scadaAPI.deleteVariable(variable.id);
       if (response.success) {
         // Remove from variables list
-        setVariables(prev => prev.filter(v => v.id !== variable.id));
+        setVariables((prev) => prev.filter((v) => v.id !== variable.id));
         setDeleteModalOpen(false);
         setSelectedVariable(null);
         showToast({
-          type: 'success',
-          title: 'Variable Deleted',
-          message: `Successfully deleted variable "${variable.var_code}"`
+          type: "success",
+          title: "Variable Deleted",
+          message: `Successfully deleted variable "${variable.var_code}"`,
         });
       } else {
-        const errorMessage = response.error || 'Failed to delete variable';
+        const errorMessage = response.error || "Failed to delete variable";
         setError(errorMessage);
         showToast({
-          type: 'error',
-          title: 'Delete Failed',
-          message: errorMessage
+          type: "error",
+          title: "Delete Failed",
+          message: errorMessage,
         });
       }
     } catch {
-      const errorMessage = 'Failed to delete variable';
+      const errorMessage = "Failed to delete variable";
       setError(errorMessage);
       showToast({
-        type: 'error',
-        title: 'Delete Failed',
-        message: errorMessage
+        type: "error",
+        title: "Delete Failed",
+        message: errorMessage,
       });
     } finally {
       setModalLoading(false);
@@ -153,32 +161,34 @@ export default function MonitoringConfig() {
       const response = await scadaAPI.deleteDevice(device.id);
       if (response.success) {
         // Remove device from devices list
-        setDevices(prev => prev.filter(d => d.id !== device.id));
+        setDevices((prev) => prev.filter((d) => d.id !== device.id));
         // Remove all variables associated with this device
-        setVariables(prev => prev.filter(v => v.device_id !== device.id));
+        setVariables((prev) => prev.filter((v) => v.device_id !== device.id));
         setDeviceDeleteModalOpen(false);
         setSelectedDevice(null);
         showToast({
-          type: 'success',
-          title: 'Device Deleted',
-          message: `Successfully deleted device "${device.name || device.scada_id}" and all its variables`
+          type: "success",
+          title: "Device Deleted",
+          message: `Successfully deleted device "${
+            device.name || device.scada_id
+          }" and all its variables`,
         });
       } else {
-        const errorMessage = response.error || 'Failed to delete device';
+        const errorMessage = response.error || "Failed to delete device";
         setError(errorMessage);
         showToast({
-          type: 'error',
-          title: 'Delete Failed',
-          message: errorMessage
+          type: "error",
+          title: "Delete Failed",
+          message: errorMessage,
         });
       }
     } catch {
-      const errorMessage = 'Failed to delete device';
+      const errorMessage = "Failed to delete device";
       setError(errorMessage);
       showToast({
-        type: 'error',
-        title: 'Delete Failed',
-        message: errorMessage
+        type: "error",
+        title: "Delete Failed",
+        message: errorMessage,
       });
     } finally {
       setModalLoading(false);
@@ -215,20 +225,25 @@ export default function MonitoringConfig() {
     return m;
   }, [variables]);
 
-  if (loading) return (
-    <div className="p-6">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p className="mt-2 text-gray-600">Loading monitoring data...</p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="p-6">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="mt-2 text-gray-600">Loading monitoring data...</p>
+      </div>
+    );
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Database Monitoring</h2>
-            <p className="text-sm text-gray-500 mt-1">View saved devices and variable configurations</p>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Database Monitoring
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              View saved devices and variable configurations
+            </p>
           </div>
           <div className="flex items-center space-x-3">
             {loading && (
@@ -237,9 +252,9 @@ export default function MonitoringConfig() {
             <button
               onClick={loadData}
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-medium transition-all"
             >
-              {loading ? 'Loading...' : 'Refresh'}
+              {loading ? "Loading..." : "Refresh"}
             </button>
           </div>
         </div>
@@ -247,8 +262,18 @@ export default function MonitoringConfig() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
             <div className="flex items-center">
-              <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 text-red-500 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               {error}
             </div>
@@ -259,43 +284,66 @@ export default function MonitoringConfig() {
           <div className="text-center py-12">
             <div className="w-16 h-16 mx-auto mb-4 text-gray-300">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No devices in database</h3>
-            <p className="text-gray-500">Add devices from the Device Selector to start monitoring</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No devices in database
+            </h3>
+            <p className="text-gray-500">
+              Add devices from the Device Selector to start monitoring
+            </p>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
               <div className="bg-blue-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-blue-600">{devices.length}</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {devices.length}
+                </div>
                 <div className="text-sm text-blue-800">Total Devices</div>
               </div>
               <div className="bg-green-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-green-600">{variables.length}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {variables.length}
+                </div>
                 <div className="text-sm text-green-800">Total Variables</div>
               </div>
               <div className="bg-orange-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-orange-600">
-                  {variables.filter(v => v.enabled).length}
+                  {variables.filter((v) => v.enabled).length}
                 </div>
                 <div className="text-sm text-orange-800">Active Variables</div>
               </div>
             </div>
 
-            {devices.map(device => (
-              <div key={device.id} className="border border-gray-200 rounded-lg overflow-hidden">
+            {devices.map((device) => (
+              <div
+                key={device.id}
+                className="border border-gray-200 rounded-xl overflow-hidden shadow-lg"
+              >
                 <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">{device.name || device.scada_id}</h3>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {device.name || device.scada_id}
+                      </h3>
                       <div className="flex items-center space-x-4 mt-1">
-                        <span className="text-sm text-gray-500">SCADA ID: {device.scada_id}</span>
-                        <span className="text-sm text-gray-500">DB ID: {device.id}</span>
+                        <span className="text-sm text-gray-500">
+                          SCADA ID: {device.scada_id}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          DB ID: {device.id}
+                        </span>
                         {device.created_at && (
                           <span className="text-sm text-gray-500">
-                            Added: {new Date(device.created_at).toLocaleDateString()}
+                            Added:{" "}
+                            {new Date(device.created_at).toLocaleDateString()}
                           </span>
                         )}
                       </div>
@@ -306,11 +354,21 @@ export default function MonitoringConfig() {
                       </span>
                       <button
                         onClick={() => handleDeleteDevice(device)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                         title="Delete device"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -323,50 +381,88 @@ export default function MonitoringConfig() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="text-left border-b border-gray-200">
-                            <th className="pb-3 font-medium text-gray-900">Variable Code</th>
-                            <th className="pb-3 font-medium text-gray-900">Name</th>
-                            <th className="pb-3 font-medium text-gray-900">Unit</th>
-                            <th className="pb-3 font-medium text-gray-900">Status</th>
-                            <th className="pb-3 font-medium text-gray-900">Created</th>
-                            <th className="pb-3 font-medium text-gray-900">Actions</th>
+                            <th className="pb-3 font-medium text-gray-900">
+                              Variable Code
+                            </th>
+                            <th className="pb-3 font-medium text-gray-900">
+                              Name
+                            </th>
+                            <th className="pb-3 font-medium text-gray-900">
+                              Unit
+                            </th>
+                            <th className="pb-3 font-medium text-gray-900">
+                              Status
+                            </th>
+                            <th className="pb-3 font-medium text-gray-900">
+                              Created
+                            </th>
+                            <th className="pb-3 font-medium text-gray-900">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {varsByDevice.get(device.id)?.map(v => (
+                          {varsByDevice.get(device.id)?.map((v) => (
                             <tr key={v.id} className="hover:bg-gray-50">
-                              <td className="py-3 font-mono text-sm">{v.var_code}</td>
-                              <td className="py-3">{v.name || '-'}</td>
-                              <td className="py-3">{v.unit || '-'}</td>
+                              <td className="py-3 font-mono text-sm">
+                                {v.var_code}
+                              </td>
+                              <td className="py-3">{v.name || "-"}</td>
+                              <td className="py-3">{v.unit || "-"}</td>
                               <td className="py-3">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  v.enabled 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {v.enabled ? 'Active' : 'Disabled'}
+                                <span
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                    v.enabled
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {v.enabled ? "Active" : "Inactive"}
                                 </span>
                               </td>
                               <td className="py-3 text-xs text-gray-500">
-                                {v.created_at ? new Date(v.created_at).toLocaleString() : '-'}
+                                {v.created_at
+                                  ? new Date(v.created_at).toLocaleString()
+                                  : "-"}
                               </td>
                               <td className="py-3">
                                 <div className="flex items-center space-x-2">
                                   <button
                                     onClick={() => handleEditVariable(v)}
-                                    className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                                     title="Edit variable"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                      />
                                     </svg>
                                   </button>
                                   <button
                                     onClick={() => handleDeleteVariable(v)}
-                                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                     title="Delete variable"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
                                     </svg>
                                   </button>
                                 </div>
@@ -379,11 +475,22 @@ export default function MonitoringConfig() {
                   ) : (
                     <div className="text-center py-8">
                       <div className="w-12 h-12 mx-auto mb-3 text-gray-300">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        <svg
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1}
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                          />
                         </svg>
                       </div>
-                      <p className="text-gray-500">No variables configured for this device</p>
+                      <p className="text-gray-500">
+                        No variables configured for this device
+                      </p>
                     </div>
                   )}
                 </div>

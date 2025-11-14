@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useDeviceData } from "@/hooks/useDeviceData";
+import {
+  SystemStatusIndicator,
+  HeartbeatMonitor,
+} from "@/components/SystemStatusIndicator";
 
 export default function DashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -56,6 +60,9 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-center space-x-8">
+              {/* System Status - WebSocket based heartbeat monitoring */}
+              <SystemStatusIndicator showDetails={false} />
+
               <div className="hidden lg:flex flex-col items-end">
                 <div className="text-sm font-medium text-gray-900">
                   {currentTime.toLocaleDateString("en-US", {
@@ -68,40 +75,6 @@ export default function DashboardPage() {
                 <div className="text-xl font-mono text-blue-600 font-semibold">
                   {currentTime.toLocaleTimeString()}
                 </div>
-              </div>
-              <div
-                className={`flex items-center px-4 py-2 rounded-full border ${
-                  loading
-                    ? "bg-yellow-50 border-yellow-200"
-                    : error
-                    ? "bg-red-50 border-red-200"
-                    : "bg-green-50 border-green-200"
-                }`}
-              >
-                <div
-                  className={`w-3 h-3 rounded-full mr-3 shadow-lg ${
-                    loading
-                      ? "bg-yellow-500 shadow-yellow-500/50 animate-pulse"
-                      : error
-                      ? "bg-red-500 shadow-red-500/50"
-                      : "bg-green-500 shadow-green-500/50 animate-pulse"
-                  }`}
-                ></div>
-                <span
-                  className={`text-sm font-semibold ${
-                    loading
-                      ? "text-yellow-700"
-                      : error
-                      ? "text-red-700"
-                      : "text-green-700"
-                  }`}
-                >
-                  {loading
-                    ? "Connecting..."
-                    : error
-                    ? "Connection Error"
-                    : "System Online"}
-                </span>
               </div>
               <Link
                 href="/login"
@@ -624,6 +597,20 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* System Heartbeat Monitor */}
+        {/* <div className="mb-16">
+          <div className="text-center mb-8">
+            <h3 className="text-3xl font-bold text-gray-900 mb-4">
+              System Health Monitor
+            </h3>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Real-time monitoring of EDS heartbeat and system connectivity
+            </p>
+          </div>
+
+          <HeartbeatMonitor className="max-w-4xl mx-auto" />
+        </div> */}
 
         {/* Quick Actions & Features */}
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-lg p-10 border border-gray-100/50 mb-16">
