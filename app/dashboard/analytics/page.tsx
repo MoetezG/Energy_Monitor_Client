@@ -6,6 +6,7 @@ import MultiVariableChart from "@/components/MultiVariableChart";
 import DeviceMultiVariableChart from "@/components/DeviceMultiVariableChart";
 import ReportGenerator from "@/components/ReportGenerator";
 import Link from "next/link";
+import EnergyBarChart from "@/components/EnergyBarChart";
 
 interface AnalyticsPageState {
   devices: DatabaseDevice[];
@@ -23,6 +24,25 @@ export default function AnalyticsPage() {
     loading: false,
     error: null,
   });
+  async function getMockEnergy() {
+    const res = await fetch("http://localhost:3000/api/energy");
+    return res.json();
+  }
+
+  const [energy, setEnergy] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchEnergy = async () => {
+      try {
+        const energyData = await getMockEnergy();
+        setEnergy(energyData);
+      } catch (error) {
+        console.error("Failed to fetch energy data:", error);
+      }
+    };
+
+    fetchEnergy();
+  }, []);
 
   const [viewMode, setViewMode] = useState<"device" | "multi">("device");
   const [selectedDevice, setSelectedDevice] = useState<number | null>(null);
@@ -374,19 +394,44 @@ export default function AnalyticsPage() {
         )}
 
         {/* Charts Display */}
-        {!state.loading && !state.error && (
-          <div className="space-y-8">
-            {viewMode === "device" ? (
-              /* Device-Based Chart - Each device gets its own chart with all variables */
-              <DeviceMultiVariableChart height={400} className="w-full" />
-            ) : (
-              /* Multi-Variable Chart - All lines in one chart */
-              <MultiVariableChart
-                height={600}
-                className="w-full"
-                maxVariables={8}
+        {!state.loading && !state.error && energy && (
+          <div className="p-6 space-y-6">
+            <h1 className="text-2xl font-bold">
+              Dashboard Énergie (Mock Demo)
+            </h1>
+
+            {/* Energy Charts Section */}
+            <div className="space-y-8">
+              {/* Bar Chart multijours */}
+              <EnergyBarChart
+                data={energy.daily}
+                title="Consommation par Jour (kWh)"
+                theme="blue"
+                showAverage={true}
+                enableExport={true}
               />
-            )}
+
+              {/* Bar Chart par heures */}
+              <EnergyBarChart
+                data={energy.hourly}
+                title="Consommation par Tranche Horaire (kWh)"
+                theme="green"
+                showAverage={true}
+                enableExport={true}
+              />
+
+              {/* Bar Chart par zones */}
+              <EnergyBarChart
+                data={energy.zones.map((z: { zone: string; kWh: number }) => ({
+                  label: z.zone,
+                  kWh: z.kWh,
+                }))}
+                title="Consommation par Zone (kWh)"
+                theme="purple"
+                showAverage={true}
+                enableExport={true}
+              />
+            </div>
           </div>
         )}
 
