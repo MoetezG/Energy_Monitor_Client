@@ -55,7 +55,7 @@ export default function DashboardPage() {
                   Energy Monitor
                 </h1>
                 <p className="text-sm text-gray-600">
-                  Industrial SCADA Management
+                  Energy Management Dashboard
                 </p>
               </div>
             </div>
@@ -105,24 +105,24 @@ export default function DashboardPage() {
         {/* Hero Section */}
         <div className="text-center mb-16">
           <h2 className="text-5xl font-bold bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-600 mb-6 leading-tight">
-            Energy Management Dashboard
+            Energy Dashboard
           </h2>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Monitor, analyze, and optimize your industrial energy systems with
-            real-time SCADA integration and advanced analytics.
+            Monitor, analyze, and optimize your energy usage with real-time
+            tracking and smart analytics.
           </p>
           <div className="flex justify-center space-x-8 mb-8">
             <div className="flex items-center text-base text-gray-700">
               <div className="w-3 h-3 bg-blue-500 rounded-full mr-3 shadow-lg shadow-blue-500/50"></div>
-              Real-time Monitoring
+              Live Monitoring
             </div>
             <div className="flex items-center text-base text-gray-700">
               <div className="w-3 h-3 bg-green-500 rounded-full mr-3 shadow-lg shadow-green-500/50"></div>
-              Data Analytics
+              Smart Analytics
             </div>
             <div className="flex items-center text-base text-gray-700">
               <div className="w-3 h-3 bg-purple-500 rounded-full mr-3 shadow-lg shadow-purple-500/50"></div>
-              Device Management
+              Device Control
             </div>
           </div>
         </div>
@@ -399,11 +399,11 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center text-gray-700">
                   <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                  Variable selection and monitoring setup
+                  Choose what to monitor
                 </div>
                 <div className="flex items-center text-gray-700">
                   <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                  Database integration and data persistence
+                  Save your data automatically
                 </div>
               </div>
               <Link
@@ -462,11 +462,9 @@ export default function DashboardPage() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold mb-3">
-                  Real-time Monitoring
-                </h3>
+                <h3 className="text-2xl font-bold mb-3">Live Monitoring</h3>
                 <p className="text-green-100 mb-6">
-                  Monitor live device values and system status
+                  Watch your energy usage in real-time
                 </p>
               </div>
             </div>
@@ -474,15 +472,15 @@ export default function DashboardPage() {
               <div className="space-y-4 mb-8">
                 <div className="flex items-center text-gray-700">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                  Live data streaming and updates
+                  Live energy data updates
                 </div>
                 <div className="flex items-center text-gray-700">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                  Configurable refresh intervals
+                  Customizable refresh settings
                 </div>
                 <div className="flex items-center text-gray-700">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                  Multi-device monitoring dashboard
+                  Monitor multiple devices at once
                 </div>
               </div>
               <Link
@@ -616,11 +614,11 @@ export default function DashboardPage() {
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-lg p-10 border border-gray-100/50 mb-16">
           <div className="text-center mb-12">
             <h3 className="text-3xl font-bold text-gray-900 mb-4">
-              System Features & Capabilities
+              Features & Tools
             </h3>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Discover the powerful features that make energy monitoring
-              efficient and insightful
+              Discover the features that make energy monitoring simple and
+              effective
             </p>
           </div>
 
@@ -642,11 +640,11 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                Historical Analytics
+                Usage History
               </h4>
               <p className="text-gray-600">
-                Comprehensive data analysis with interactive charts and trend
-                visualization
+                View your energy usage patterns with easy-to-read charts and
+                trends
               </p>
             </div>
 
@@ -667,11 +665,11 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                Real-time Alerts
+                Smart Alerts
               </h4>
               <p className="text-gray-600">
-                Intelligent notifications and threshold monitoring for proactive
-                management
+                Get notified when your energy usage goes above or below your set
+                limits
               </p>
             </div>
 
@@ -692,10 +690,11 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                System Integration
+                Easy Setup
               </h4>
               <p className="text-gray-600">
-                Seamless SCADA integration with enterprise systems and databases
+                Connect your energy systems effortlessly with our simple setup
+                process
               </p>
             </div>
           </div>
@@ -724,10 +723,10 @@ export default function DashboardPage() {
               />
             </svg>
             {loading
-              ? "Initializing system..."
+              ? "Getting ready..."
               : error
-              ? "System error - check connection"
-              : "System operational and ready for monitoring"}
+              ? "Connection issue - please check your internet"
+              : "Everything is working perfectly"}
           </div>
         </div>
       </div>

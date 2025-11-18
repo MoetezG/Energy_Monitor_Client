@@ -1,11 +1,13 @@
-
-import React from 'react'
+import React from "react";
 
 export default function page() {
   return (
     <div>
-      <h1>Welcome to the Energy Monitor Dashboard</h1>
-      <p>Monitor and track energy data from your SCADA devices in real-time.</p>
+      <h1>Welcome to Energy Monitor</h1>
+      <p>
+        Track and monitor your energy usage in real-time with our easy-to-use
+        dashboard.
+      </p>
     </div>
-  )
+  );
 }

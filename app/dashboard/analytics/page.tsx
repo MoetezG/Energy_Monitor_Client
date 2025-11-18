@@ -174,7 +174,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">
-                    Analytics Dashboard
+                    Usage Charts
                   </h1>
                   <p className="text-sm text-gray-600">
                     Historical trends & data analysis
@@ -220,11 +220,11 @@ export default function AnalyticsPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-purple-600 to-indigo-600 mb-3">
-            Energy Analytics Dashboard
+            Usage History
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Analyze historical trends, patterns, and energy consumption data
-            with device-specific or system-wide visualizations
+            View historical trends, patterns, and energy usage data with
+            easy-to-read charts and graphs
           </p>
         </div>
 

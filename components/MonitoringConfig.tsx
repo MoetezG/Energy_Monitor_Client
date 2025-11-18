@@ -51,7 +51,7 @@ export default function MonitoringConfig() {
         setVariables([]);
       }
     } catch {
-      setError("Failed to load monitoring data");
+      setError("Failed to load monitoring information");
     } finally {
       setLoading(false);
     }
@@ -92,8 +92,8 @@ export default function MonitoringConfig() {
         setSelectedVariable(null);
         showToast({
           type: "success",
-          title: "Variable Updated",
-          message: `Successfully updated variable "${variable.var_code}"`,
+          title: "Setting Updated",
+          message: `Successfully updated setting "${variable.var_code}"`,
         });
       } else {
         const errorMessage = response.error || "Failed to update variable";
@@ -105,7 +105,7 @@ export default function MonitoringConfig() {
         });
       }
     } catch {
-      const errorMessage = "Failed to update variable";
+      const errorMessage = "Failed to update setting";
       setError(errorMessage);
       showToast({
         type: "error",
@@ -129,11 +129,11 @@ export default function MonitoringConfig() {
         setSelectedVariable(null);
         showToast({
           type: "success",
-          title: "Variable Deleted",
-          message: `Successfully deleted variable "${variable.var_code}"`,
+          title: "Setting Deleted",
+          message: `Successfully deleted setting "${variable.var_code}"`,
         });
       } else {
-        const errorMessage = response.error || "Failed to delete variable";
+        const errorMessage = response.error || "Failed to delete setting";
         setError(errorMessage);
         showToast({
           type: "error",
@@ -142,7 +142,7 @@ export default function MonitoringConfig() {
         });
       }
     } catch {
-      const errorMessage = "Failed to delete variable";
+      const errorMessage = "Failed to delete setting";
       setError(errorMessage);
       showToast({
         type: "error",
@@ -171,7 +171,7 @@ export default function MonitoringConfig() {
           title: "Device Deleted",
           message: `Successfully deleted device "${
             device.name || device.scada_id
-          }" and all its variables`,
+          }" and all its settings`,
         });
       } else {
         const errorMessage = response.error || "Failed to delete device";
@@ -229,7 +229,7 @@ export default function MonitoringConfig() {
     return (
       <div className="p-6">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-2 text-gray-600">Loading monitoring data...</p>
+        <p className="mt-2 text-gray-600">Loading your settings...</p>
       </div>
     );
 
@@ -239,10 +239,10 @@ export default function MonitoringConfig() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
-              Database Monitoring
+              Your Monitoring Settings
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              View saved devices and variable configurations
+              View and manage your saved device settings
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -293,10 +293,10 @@ export default function MonitoringConfig() {
               </svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No devices in database
+              No devices set up yet
             </h3>
             <p className="text-gray-500">
-              Add devices from the Device Selector to start monitoring
+              Add devices from the Device Setup page to start monitoring
             </p>
           </div>
         ) : (

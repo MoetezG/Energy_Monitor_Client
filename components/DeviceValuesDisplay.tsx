@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
+import useRealTimeWebSocket from "@/hooks/useRealTimeWebSocket";
 
 interface DeviceValue {
   deviceId: number;
   deviceName: string;
   variableCode: string;
   variableName: string;
-  value: number | string;
+  value: number | string | boolean;
   unit: string;
   timestamp: Date;
   status: "online" | "offline" | "warning" | "error";
@@ -19,6 +20,7 @@ interface DeviceValuesDisplayProps {
   autoRefresh?: boolean;
   showCharts?: boolean;
   compactView?: boolean;
+  useWebSocket?: boolean;
 }
 
 export default function DeviceValuesDisplay({
@@ -26,6 +28,7 @@ export default function DeviceValuesDisplay({
   autoRefresh = true,
   showCharts = false,
   compactView = false,
+  useWebSocket = false,
 }: DeviceValuesDisplayProps) {
   const [devices, setDevices] = useState<DatabaseDevice[]>([]);
   const [variables, setVariables] = useState<VariableRecord[]>([]);
@@ -36,6 +39,20 @@ export default function DeviceValuesDisplay({
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+
+  // WebSocket hook for real-time data
+  const {
+    realTimeData: wsRealTimeData,
+    isConnected: wsIsConnected,
+    error: wsError,
+    loading: wsLoading,
+    lastUpdate: wsLastUpdate,
+    rawData: wsRawData,
+  } = useRealTimeWebSocket();
+
+  // Show error if WebSocket is enabled but there's an error
+  const displayError = error || (useWebSocket ? wsError : null);
+  const displayLoading = loading || (useWebSocket ? wsLoading : false);
 
   const loadDevicesAndVariables = async () => {
     setLoading(true);
@@ -59,41 +76,41 @@ export default function DeviceValuesDisplay({
         setVariables(varResp.data as VariableRecord[]);
       }
     } catch {
-      setError("Failed to load device data");
+      setError("Failed to load device information");
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshValues = async () => {
+  const refreshValues = useCallback(async () => {
     if (devices.length === 0) return;
 
     setIsRefreshing(true);
 
     try {
-      // Simulate real device value fetching
-      const mockValues: DeviceValue[] = devices.flatMap((device) => {
-        const deviceVars = variables.filter((v) => v.device_id === device.id);
-        return deviceVars.map((variable) => ({
-          deviceId: device.id,
-          deviceName: device.name || `Device ${device.scada_id}`,
-          variableCode: variable.var_code,
-          variableName: variable.name || variable.var_code,
-          value: Math.random() * 100,
-          unit: variable.unit || "kW",
-          timestamp: new Date(),
-          status: Math.random() > 0.1 ? "online" : ("warning" as const),
-        }));
-      });
-
-      setDeviceValues(mockValues);
-      setLastUpdate(new Date());
+      if (useWebSocket) {
+        // Use WebSocket data if available
+        if (wsRealTimeData.length > 0) {
+          const wsValues: DeviceValue[] = wsRealTimeData.map((wsVar) => ({
+            deviceId: wsVar.device_id,
+            deviceName: wsVar.device_name,
+            variableCode: wsVar.var_code,
+            variableName: wsVar.variable_name,
+            value: wsVar.value,
+            unit: wsVar.unit,
+            timestamp: wsVar.timestamp,
+            status: wsVar.status,
+          }));
+          setDeviceValues(wsValues);
+          setLastUpdate(wsLastUpdate);
+        }
+      }
     } catch {
       setError("Failed to refresh device values");
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [devices, variables, useWebSocket, wsRealTimeData, wsLastUpdate]);
 
   useEffect(() => {
     loadDevicesAndVariables();
@@ -103,14 +120,27 @@ export default function DeviceValuesDisplay({
     if (devices.length > 0 && variables.length > 0) {
       refreshValues();
     }
-  }, [devices, variables]);
+  }, [devices, variables, refreshValues]);
+
+  // Update device values when WebSocket data changes
+  useEffect(() => {
+    if (useWebSocket && wsRealTimeData.length > 0) {
+      refreshValues();
+    }
+  }, [useWebSocket, wsRealTimeData, wsLastUpdate, refreshValues]);
 
   useEffect(() => {
-    if (!autoRefresh || devices.length === 0) return;
+    if (!autoRefresh || devices.length === 0 || useWebSocket) return;
 
     const interval = setInterval(refreshValues, refreshInterval);
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval, devices.length]);
+  }, [
+    autoRefresh,
+    refreshInterval,
+    devices.length,
+    useWebSocket,
+    refreshValues,
+  ]);
 
   const filteredDeviceValues = useMemo(() => {
     if (!selectedDeviceId) return deviceValues;
@@ -199,17 +229,19 @@ export default function DeviceValuesDisplay({
     }
   };
 
-  if (loading) {
+  if (displayLoading) {
     return (
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
           <div className="ml-4">
             <h3 className="text-lg font-semibold text-gray-900">
-              Loading Device Values
+              Loading Energy Data
             </h3>
             <p className="text-gray-600">
-              Fetching real-time data from your devices...
+              {useWebSocket
+                ? "Connecting and getting your live energy data..."
+                : "Getting your latest energy data..."}
             </p>
           </div>
         </div>
@@ -225,7 +257,7 @@ export default function DeviceValuesDisplay({
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Real-Time Device Monitoring
+                Live Energy Monitoring
               </h2>
               <div className="flex items-center space-x-4 text-sm text-gray-600">
                 <div className="flex items-center">
@@ -238,6 +270,16 @@ export default function DeviceValuesDisplay({
                   ></div>
                   {isRefreshing ? "Refreshing..." : "Live Data"}
                 </div>
+                {useWebSocket && (
+                  <div className="flex items-center">
+                    <div
+                      className={`w-3 h-3 rounded-full mr-2 ${
+                        wsIsConnected ? "bg-green-500" : "bg-red-500"
+                      }`}
+                    ></div>
+                    Connection {wsIsConnected ? "Active" : "Lost"}
+                  </div>
+                )}
                 {lastUpdate && (
                   <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
                 )}
@@ -309,7 +351,7 @@ export default function DeviceValuesDisplay({
       </div>
 
       {/* Error Display */}
-      {error && (
+      {displayError && (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
           <div className="flex items-center">
             <svg
@@ -329,7 +371,12 @@ export default function DeviceValuesDisplay({
               <h3 className="text-lg font-semibold text-red-900">
                 Error Loading Data
               </h3>
-              <p className="text-red-700">{error}</p>
+              <p className="text-red-700">{displayError}</p>
+              {useWebSocket && wsError && (
+                <p className="text-red-600 text-sm mt-1">
+                  WebSocket Error: {wsError}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -389,12 +436,12 @@ export default function DeviceValuesDisplay({
                       </span>
                     </div>
 
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+                    <h4 className="text-sm font-semibold flex items-center gap-1 justify-baseline text-gray-900 mb-1 truncate">
+                      {/* seperate with point  */}
+                      {deviceValue.variableName}{" "}
+                      <div className="bg-black rounded-full h-2 w-2"> </div>{" "}
                       {deviceValue.deviceName}
                     </h4>
-                    <p className="text-xs text-gray-600 mb-3 truncate">
-                      {deviceValue.variableName}
-                    </p>
 
                     <div className="flex items-baseline justify-between">
                       <div>

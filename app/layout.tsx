@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Energy Monitor SCADA System",
-  description: "Industrial Energy Management and Monitoring Dashboard",
+  title: "Energy Monitor - Smart Energy Management",
+  description:
+    "Monitor and manage your energy usage with our easy-to-use dashboard",
 };
 
 export default function RootLayout({
@@ -28,9 +29,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

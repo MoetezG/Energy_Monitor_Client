@@ -130,11 +130,43 @@ class ApiClient {
       this.token = localStorage.getItem('authToken');
     }
 
-    // Add request interceptor to include auth token
+    // Add request interceptor to include auth token and ensure JSON content
     this.axiosInstance.interceptors.request.use((config) => {
       if (this.token) {
         config.headers.Authorization = `Bearer ${this.token}`;
       }
+      
+      // Ensure we're always sending JSON for POST/PUT/PATCH requests
+      if (config.method && ['post', 'put', 'patch'].includes(config.method.toLowerCase())) {
+        // Only set JSON headers if data exists and isn't FormData
+        if (config.data && !(config.data instanceof FormData)) {
+          config.headers['Content-Type'] = 'application/json';
+          
+          // Log data type for debugging (remove in production)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`API ${config.method?.toUpperCase()} ${config.url} - Data type:`, typeof config.data);
+          }
+          
+          // Ensure data is JSON serializable
+          if (typeof config.data === 'string') {
+            try {
+              JSON.parse(config.data);
+            } catch {
+              // If it's a string but not valid JSON, wrap it in an object
+              config.data = JSON.stringify({ value: config.data });
+            }
+          } else if (typeof config.data === 'object') {
+            try {
+              // Validate that the object can be serialized to JSON
+              JSON.stringify(config.data);
+            } catch (error) {
+              console.warn('Data not JSON serializable, converting to string:', error);
+              config.data = JSON.stringify({ value: String(config.data) });
+            }
+          }
+        }
+      }
+      
       return config;
     });
 
@@ -193,7 +225,9 @@ class ApiClient {
 
   async post<T>(endpoint: string, data: Record<string, unknown> | LoginCredentials | Partial<User> | Partial<Device> | unknown[]): Promise<ApiResponse<T>> {
     try {
-      const response = await this.axiosInstance.post(endpoint, data);
+      // Validate and ensure data is JSON serializable
+      const jsonData = this.ensureJsonData(data);
+      const response = await this.axiosInstance.post(endpoint, jsonData);
       return {
         success: true,
         data: response.data,
@@ -205,7 +239,9 @@ class ApiClient {
 
   async put<T>(endpoint: string, data: Record<string, unknown> | Partial<User> | Partial<Device>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.axiosInstance.put(endpoint, data);
+      // Validate and ensure data is JSON serializable
+      const jsonData = this.ensureJsonData(data);
+      const response = await this.axiosInstance.put(endpoint, jsonData);
       return {
         success: true,
         data: response.data,
@@ -225,6 +261,37 @@ class ApiClient {
     } catch (error) {
       return this.handleError(error);
     }
+  }
+
+  private ensureJsonData(data: unknown): unknown {
+    if (data === null || data === undefined) {
+      return data;
+    }
+    
+    // If it's already a proper object/array, validate it's JSON serializable
+    if (typeof data === 'object') {
+      try {
+        JSON.stringify(data);
+        return data;
+      } catch {
+        console.warn('Data is not JSON serializable, converting to string representation');
+        return { value: String(data) };
+      }
+    }
+    
+    // If it's a string, try to parse it as JSON first
+    if (typeof data === 'string') {
+      try {
+        JSON.parse(data);
+        return data; // It's already valid JSON string
+      } catch {
+        // It's a plain string, wrap it in an object
+        return { value: data };
+      }
+    }
+    
+    // For primitives (numbers, booleans), they're JSON serializable
+    return data;
   }
 
   setToken(token: string | null) {
