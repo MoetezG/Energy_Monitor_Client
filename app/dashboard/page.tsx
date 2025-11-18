@@ -541,7 +541,7 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-2xl font-bold mb-3">Data Analytics</h3>
                 <p className="text-purple-100 mb-6">
-                  Analyze trends and historical data patterns
+                  Analyze trends, historical data patterns, and generate reports
                 </p>
               </div>
             </div>
@@ -557,7 +557,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center text-gray-700">
                   <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
-                  Multiple chart view modes
+                  Generate and export CSV reports
                 </div>
               </div>
               <Link

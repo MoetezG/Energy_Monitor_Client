@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
 import MultiVariableChart from "@/components/MultiVariableChart";
 import DeviceMultiVariableChart from "@/components/DeviceMultiVariableChart";
+import ReportGenerator from "@/components/ReportGenerator";
 import Link from "next/link";
 
 interface AnalyticsPageState {
@@ -334,6 +335,9 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+
+        {/* Report Generator */}
+        <ReportGenerator className="mb-8" />
 
         {/* Error Display */}
         {state.error && (
