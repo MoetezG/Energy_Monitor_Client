@@ -145,7 +145,7 @@ export default function Sidebar() {
         <div className="flex min-h-0 flex-1 flex-col bg-white/95 backdrop-blur-lg border-r border-gray-200/50 shadow-xl">
           {/* Logo */}
           <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
-            <div className="flex items-center flex-shrink-0 px-4">
+            <div className="flex items-center shrink-0 px-4">
               <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                 <svg
                   className="w-6 h-6 text-white"
@@ -206,7 +206,7 @@ export default function Sidebar() {
                     }`}
                   >
                     <div
-                      className={`flex-shrink-0 ${
+                      className={`shrink-0 ${
                         active
                           ? "text-white"
                           : "text-gray-500 group-hover:text-gray-700"
@@ -243,7 +243,7 @@ export default function Sidebar() {
           </div>
 
           {/* User Menu */}
-          <div className="flex-shrink-0 p-4 border-t border-gray-200/50">
+          <div className="shrink-0 p-4 border-t border-gray-200/50">
             <Link
               href="/login"
               className={`group flex items-center w-full px-3 py-3 text-sm font-medium text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-700 transition-all duration-200 ${
@@ -322,7 +322,7 @@ export default function Sidebar() {
               </button>
             </div>
             <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
-              <div className="flex-shrink-0 flex items-center px-4">
+              <div className="shrink-0 flex items-center px-4">
                 <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                   <svg
                     className="w-6 h-6 text-white"
@@ -360,7 +360,7 @@ export default function Sidebar() {
                       onClick={() => setIsCollapsed(true)}
                     >
                       <div
-                        className={`flex-shrink-0 ${
+                        className={`shrink-0 ${
                           active
                             ? "text-white"
                             : "text-gray-500 group-hover:text-gray-700"
@@ -385,7 +385,7 @@ export default function Sidebar() {
                 })}
               </nav>
             </div>
-            <div className="flex-shrink-0 p-4 border-t border-gray-200/50">
+            <div className="shrink-0 p-4 border-t border-gray-200/50">
               <Link
                 href="/login"
                 className="group flex items-center w-full px-3 py-3 text-sm font-medium text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-700 transition-all duration-200"
