@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
+import useRealTimeWebSocket from "@/hooks/useRealTimeWebSocket";
 import DeviceMultiVariableChart from "@/components/DeviceMultiVariableChart";
+import MultiVariableChart from "@/components/MultiVariableChart";
 import ReportGenerator from "@/components/ReportGenerator";
 import DashboardLayout from "@/components/DashboardLayout";
 import EnergyBarChart from "@/components/EnergyBarChart";
@@ -28,6 +30,10 @@ export default function AnalyticsPage() {
   });
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [activeChart, setActiveChart] = useState<"device" | "multi">("device");
+
+  // Use WebSocket hook for real-time device status
+  const { deviceStatuses } = useRealTimeWebSocket();
 
   async function getMockEnergy() {
     const res = await fetch("http://localhost:3000/api/energy");
@@ -58,59 +64,57 @@ export default function AnalyticsPage() {
     const initializeData = async () => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
-        const response = await scadaAPI.getDatabaseDevices();
-        if (response.success && response.data) {
+        // Fetch both devices and variables from the database
+        const [devicesResponse, variablesResponse] = await Promise.all([
+          scadaAPI.getDatabaseDevices(),
+          scadaAPI.getVariableList(),
+        ]);
+
+        if (devicesResponse.success && devicesResponse.data) {
           setState((prev) => ({
             ...prev,
-            devices: response.data || [],
-            loading: false,
+            devices: devicesResponse.data || [],
           }));
-          // Load variables inline
-          try {
-            const allVariables: VariableRecord[] = (response.data || []).map(
-              (device, index) => ({
-                id: index + 1,
-                device_id: device.id,
-                name: `Variable_${index + 1}`,
-                var_code: `VAR_${index + 1}`,
-                unit: index % 2 === 0 ? "kWh" : "V",
-                timestamp: new Date().toISOString(),
-                value: Math.random() * 100,
-              })
-            );
-            setState((prev) => ({ ...prev, variables: allVariables }));
-          } catch (error: unknown) {
-            console.error("Error loading variables:", error);
-            setState((prev) => ({
-              ...prev,
-              error: "Failed to load variables",
-            }));
-          }
         } else {
           setState((prev) => ({
             ...prev,
-            error: response.error || "Failed to load devices",
-            loading: false,
+            error: devicesResponse.error || "Failed to load devices",
           }));
         }
+
+        if (variablesResponse.success && variablesResponse.data) {
+          setState((prev) => ({
+            ...prev,
+            variables: variablesResponse.data || [],
+          }));
+        } else {
+          console.error("Failed to load variables:", variablesResponse.error);
+          setState((prev) => ({
+            ...prev,
+            error: variablesResponse.error || "Failed to load variables",
+          }));
+        }
+
+        setState((prev) => ({ ...prev, loading: false }));
       } catch (error: unknown) {
         const errorObj = error as {
           status?: number;
           response?: { status?: number; statusText?: string };
           message?: string;
         };
+
         if (errorObj?.status === 304 || errorObj?.response?.status === 304) {
           setState((prev) => ({ ...prev, loading: false }));
           return;
         }
 
-        console.error("Error loading devices:", error);
+        console.error("Error loading data:", error);
         setState((prev) => ({
           ...prev,
           error: `Network error: ${
             errorObj?.message ||
             errorObj?.response?.statusText ||
-            "Failed to load devices"
+            "Failed to load data"
           }`,
           loading: false,
         }));
@@ -155,8 +159,8 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Essential Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-blue-100">
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 rounded-xl">
@@ -185,32 +189,6 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-green-100">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-xl">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Variables</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {state.variables.length}
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-purple-100">
             <div className="flex items-center">
               <div className="p-3 bg-purple-100 rounded-xl">
@@ -224,24 +202,26 @@ export default function AnalyticsPage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                   />
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Selected</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Total Variables
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {state.selectedVariables.length}
+                  {state.variables.length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-100">
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-green-100">
             <div className="flex items-center">
-              <div className="p-3 bg-orange-100 rounded-xl">
+              <div className="p-3 bg-green-100 rounded-xl">
                 <svg
-                  className="w-6 h-6 text-orange-600"
+                  className="w-6 h-6 text-green-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -250,14 +230,44 @@ export default function AnalyticsPage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Online Devices
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {state.devices.filter((d) => d.name).length}
+                  {deviceStatuses.filter((d) => d.status === "online").length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-red-100">
+            <div className="flex items-center">
+              <div className="p-3 bg-red-100 rounded-xl">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Offline Devices
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {deviceStatuses.filter((d) => d.status === "offline").length}
                 </p>
               </div>
             </div>
@@ -303,17 +313,42 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            {/* Device Charts */}
+            {/*  Charts */}
 
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200/50">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">
-                Device Analysis
-              </h3>
-              <div className="space-y-8">
-                <div className="border border-gray-200 rounded-xl p-6">
-                  <h4 className="text-lg font-semibold mb-4"></h4>
-                  <DeviceMultiVariableChart />
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Device Analysis
+                </h3>
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setActiveChart("device")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      activeChart === "device"
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    Device Multi-Variable
+                  </button>
+                  <button
+                    onClick={() => setActiveChart("multi")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      activeChart === "multi"
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    Multi-Variable
+                  </button>
                 </div>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-6">
+                {activeChart === "device" ? (
+                  <DeviceMultiVariableChart />
+                ) : (
+                  <MultiVariableChart />
+                )}
               </div>
             </div>
           </div>

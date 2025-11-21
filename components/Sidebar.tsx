@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { JSX, useState } from "react";
 
 interface NavigationItem {
   name: string;
@@ -98,6 +98,25 @@ const navigation: NavigationItem[] = [
           strokeLinejoin="round"
           strokeWidth={2}
           d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
+      </svg>
+    ),
+  },
+  {
+    name: "Floor Map",
+    href: "/dashboard/floormap",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 6h16M4 12h16M4 18h16"
         />
       </svg>
     ),
@@ -221,42 +240,6 @@ export default function Sidebar() {
                 );
               })}
             </nav>
-
-            {/* Quick Actions */}
-            {!isCollapsed && (
-              <div className="px-3 mt-8">
-                <div className="bg-linear-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200/50">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center">
-                      <svg
-                        className="w-5 h-5 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                      </svg>
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <p className="text-sm font-medium text-green-900">
-                        System Status
-                      </p>
-                      <div className="flex items-center mt-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                        <p className="text-xs text-green-700">
-                          All systems online
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* User Menu */}

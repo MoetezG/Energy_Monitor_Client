@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
+import useRealTimeWebSocket from "@/hooks/useRealTimeWebSocket";
 import VariableEditModal from "./VariableEditModal";
 import VariableDeleteModal from "./VariableDeleteModal";
 import DeviceDeleteModal from "./DeviceDeleteModal";
@@ -14,6 +15,14 @@ export default function MonitoringConfig() {
   const [variables, setVariables] = useState<VariableRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // WebSocket hook for real-time device status
+  const {
+    deviceStatuses,
+    realTimeData,
+    isConnected: wsIsConnected,
+    lastUpdate,
+  } = useRealTimeWebSocket();
 
   // Modal states
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -321,238 +330,464 @@ export default function MonitoringConfig() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-blue-600">
-                  {devices.length}
-                </div>
-                <div className="text-sm text-blue-800">Total Devices</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-green-600">
-                  {variables.length}
-                </div>
-                <div className="text-sm text-green-800">Total Variables</div>
-              </div>
-              <div className="bg-orange-50 rounded-lg p-4">
-                <div className="text-2xl font-bold text-orange-600">
-                  {variables.filter((v) => v.enabled).length}
-                </div>
-                <div className="text-sm text-orange-800">Active Variables</div>
-              </div>
-            </div>
-
-            {devices.map((device) => (
-              <div
-                key={device.id}
-                className="border border-gray-200 rounded-xl overflow-hidden shadow-lg"
-              >
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {device.name || device.scada_id}
-                      </h3>
-                      <div className="flex items-center space-x-4 mt-1">
-                        <span className="text-sm text-gray-500">
-                          SCADA ID: {device.scada_id}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          DB ID: {device.id}
-                        </span>
-                        {device.created_at && (
-                          <span className="text-sm text-gray-500">
-                            Added:{" "}
-                            {new Date(device.created_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
+            {/* Enhanced Stats Cards with Real-time Data */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-500 rounded-lg">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-xl font-bold text-blue-700">
+                      {devices.length}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {varsByDevice.get(device.id)?.length || 0} variables
-                      </span>
-                      <button
-                        onClick={() => handleDeleteDevice(device)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                        title="Delete device"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
+                    <div className="text-xs text-blue-600">Total Devices</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-linear-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-500 rounded-lg">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-xl font-bold text-green-700">
+                      {
+                        deviceStatuses.filter((d) => d.status === "online")
+                          .length
+                      }
+                    </div>
+                    <div className="text-xs text-green-600">Online Devices</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-linear-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+                <div className="flex items-center">
+                  <div className="p-2 bg-red-500 rounded-lg">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-xl font-bold text-red-700">
+                      {
+                        deviceStatuses.filter((d) => d.status === "offline")
+                          .length
+                      }
+                    </div>
+                    <div className="text-xs text-red-600">Offline Devices</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-500 rounded-lg">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-xl font-bold text-purple-700">
+                      {variables.length}
+                    </div>
+                    <div className="text-xs text-purple-600">
+                      Total Variables
                     </div>
                   </div>
                 </div>
-
-                <div className="p-6">
-                  {varsByDevice.get(device.id)?.length ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-left border-b border-gray-200">
-                            <th className="pb-3 font-medium text-gray-900">
-                              Variable Code
-                            </th>
-                            <th className="pb-3 font-medium text-gray-900">
-                              Name
-                            </th>
-                            <th className="pb-3 font-medium text-gray-900">
-                              Unit
-                            </th>
-                            <th className="pb-3 font-medium text-gray-900">
-                              Status
-                            </th>
-                            <th className="pb-3 font-medium text-gray-900">
-                              Created
-                            </th>
-                            <th className="pb-3 font-medium text-gray-900">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {varsByDevice.get(device.id)?.map((v) => (
-                            <tr
-                              key={v.id}
-                              className="hover:bg-gray-50 cursor-pointer"
-                              onClick={() => handleViewChart(v, device)}
-                              title="Click to view variable chart"
-                            >
-                              <td className="py-3 font-mono text-sm">
-                                {v.var_code}
-                              </td>
-                              <td className="py-3">{v.name || "-"}</td>
-                              <td className="py-3">{v.unit || "-"}</td>
-                              <td className="py-3">
-                                <span
-                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                    v.enabled
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-gray-100 text-gray-800"
-                                  }`}
-                                >
-                                  {v.enabled ? "Active" : "Inactive"}
-                                </span>
-                              </td>
-                              <td className="py-3 text-xs text-gray-500">
-                                {v.created_at
-                                  ? new Date(v.created_at).toLocaleString()
-                                  : "-"}
-                              </td>
-                              <td className="py-3">
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleViewChart(v, device);
-                                    }}
-                                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
-                                    title="View chart"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                                      />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditVariable(v);
-                                    }}
-                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                    title="Edit variable"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                      />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteVariable(v);
-                                    }}
-                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                    title="Delete variable"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="w-12 h-12 mx-auto mb-3 text-gray-300">
-                        <svg
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1}
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-gray-500">
-                        No variables configured for this device
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
-            ))}
+            </div>{" "}
+            {/* Connection Status Indicator */}
+            <div className="mb-6 flex items-center justify-between bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    wsIsConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+                  }`}
+                ></div>
+                <span className="text-sm font-medium text-gray-700">
+                  {wsIsConnected
+                    ? "Real-time Connection Active"
+                    : "Connection Lost"}
+                </span>
+                {lastUpdate && (
+                  <span className="text-xs text-gray-500">
+                    Last update: {lastUpdate.toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500">
+                Monitoring {variables.length} total variables across{" "}
+                {deviceStatuses.filter((d) => d.status === "online").length}{" "}
+                online devices
+              </div>
+            </div>
+            {devices.map((device) => {
+              const deviceStatus = deviceStatuses.find(
+                (ds) => ds.device_id === device.id
+              );
+              const deviceVariables = varsByDevice.get(device.id) || [];
+              const statusColor =
+                deviceStatus?.status === "online"
+                  ? "bg-green-500"
+                  : deviceStatus?.status === "warning"
+                  ? "bg-yellow-500"
+                  : "bg-red-500";
+              const statusTextColor =
+                deviceStatus?.status === "online"
+                  ? "text-green-800"
+                  : deviceStatus?.status === "warning"
+                  ? "text-yellow-800"
+                  : "text-red-800";
+              const statusBgColor =
+                deviceStatus?.status === "online"
+                  ? "bg-green-100"
+                  : deviceStatus?.status === "warning"
+                  ? "bg-yellow-100"
+                  : "bg-red-100";
+
+              return (
+                <div
+                  key={device.id}
+                  className={`border-2 rounded-xl overflow-hidden shadow-lg transition-all duration-200 ${
+                    deviceStatus?.status === "online"
+                      ? "border-green-200 hover:border-green-300"
+                      : deviceStatus?.status === "warning"
+                      ? "border-yellow-200 hover:border-yellow-300"
+                      : "border-red-200 hover:border-red-300"
+                  }`}
+                >
+                  <div
+                    className={`px-6 py-4 border-b border-gray-200 ${
+                      deviceStatus?.status === "online"
+                        ? "bg-green-50"
+                        : deviceStatus?.status === "warning"
+                        ? "bg-yellow-50"
+                        : "bg-red-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={`w-3 h-3 rounded-full ${statusColor}`}
+                        ></div>
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900">
+                            {device.name || device.scada_id}
+                          </h3>
+                          <div className="flex items-center space-x-4 mt-1">
+                            <span className="text-sm text-gray-500">
+                              SCADA ID: {device.scada_id}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              DB ID: {device.id}
+                            </span>
+                            {deviceStatus && (
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusBgColor} ${statusTextColor}`}
+                              >
+                                {deviceStatus.status.toUpperCase()} •{" "}
+                                {deviceStatus.online_variables}/
+                                {deviceStatus.total_variables} vars
+                              </span>
+                            )}
+                            {device.created_at && (
+                              <span className="text-sm text-gray-500">
+                                Added:{" "}
+                                {new Date(
+                                  device.created_at
+                                ).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            deviceVariables.length > 0
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {deviceVariables.length} variables
+                        </span>
+                        <button
+                          onClick={() => handleDeleteDevice(device)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete device"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    {deviceVariables.length ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left border-b border-gray-200">
+                              <th className="pb-3 font-medium text-gray-900">
+                                Variable Code
+                              </th>
+                              <th className="pb-3 font-medium text-gray-900">
+                                Name
+                              </th>
+                              <th className="pb-3 font-medium text-gray-900">
+                                Current Value
+                              </th>
+                              <th className="pb-3 font-medium text-gray-900">
+                                Unit
+                              </th>
+                              <th className="pb-3 font-medium text-gray-900">
+                                Status
+                              </th>
+                              <th className="pb-3 font-medium text-gray-900">
+                                Last Update
+                              </th>
+                              <th className="pb-3 font-medium text-gray-900">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {deviceVariables.map((v) => {
+                              const realTimeVar = realTimeData.find(
+                                (rtd) =>
+                                  rtd.var_code === v.var_code &&
+                                  rtd.device_id === device.id
+                              );
+                              const isOnline = realTimeVar?.status === "online";
+
+                              return (
+                                <tr
+                                  key={v.id}
+                                  className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                  onClick={() => handleViewChart(v, device)}
+                                  title="Click to view variable chart"
+                                >
+                                  <td className="py-3 font-mono text-sm font-medium">
+                                    <div className="flex items-center space-x-2">
+                                      <div
+                                        className={`w-2 h-2 rounded-full ${
+                                          isOnline
+                                            ? "bg-green-500"
+                                            : "bg-gray-400"
+                                        }`}
+                                      ></div>
+                                      <span>{v.var_code}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3">{v.name || "-"}</td>
+                                  <td className="py-3 font-mono">
+                                    {realTimeVar ? (
+                                      <span
+                                        className={`${
+                                          isOnline
+                                            ? "text-green-600"
+                                            : "text-gray-500"
+                                        }`}
+                                      >
+                                        {typeof realTimeVar.value === "number"
+                                          ? realTimeVar.value.toFixed(2)
+                                          : String(realTimeVar.value)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400">
+                                        No data
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-3">{v.unit || "-"}</td>
+                                  <td className="py-3">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        isOnline
+                                          ? "bg-green-100 text-green-800"
+                                          : realTimeVar
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-gray-100 text-gray-800"
+                                      }`}
+                                    >
+                                      {isOnline
+                                        ? "Online"
+                                        : realTimeVar
+                                        ? "Warning"
+                                        : "Offline"}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 text-xs text-gray-500">
+                                    {realTimeVar
+                                      ? realTimeVar.timestamp.toLocaleTimeString()
+                                      : v.created_at
+                                      ? new Date(v.created_at).toLocaleString()
+                                      : "-"}
+                                  </td>
+                                  <td className="py-3">
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewChart(v, device);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                        title="View chart"
+                                      >
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                                          />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditVariable(v);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                        title="Edit variable"
+                                      >
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                          />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteVariable(v);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                        title="Delete variable"
+                                      >
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                          />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 mx-auto mb-3 text-gray-300">
+                          <svg
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1}
+                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500">
+                          No variables configured for this device
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
-      </div>
-
+      </div>{" "}
       {/* Modals */}
       {selectedVariable && (
         <VariableEditModal
@@ -563,7 +798,6 @@ export default function MonitoringConfig() {
           isLoading={modalLoading}
         />
       )}
-
       {selectedVariable && (
         <VariableDeleteModal
           variable={selectedVariable}
@@ -573,7 +807,6 @@ export default function MonitoringConfig() {
           isLoading={modalLoading}
         />
       )}
-
       {selectedDevice && (
         <DeviceDeleteModal
           device={selectedDevice}
@@ -584,7 +817,6 @@ export default function MonitoringConfig() {
           variableCount={varsByDevice.get(selectedDevice.id)?.length || 0}
         />
       )}
-
       {/* Variable Chart Modal */}
       {selectedVariableForChart && (
         <VariableChartModal

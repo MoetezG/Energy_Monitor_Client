@@ -18,6 +18,8 @@ import { Line } from "react-chartjs-2";
 import "chartjs-adapter-date-fns";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { FileSpreadsheetIcon } from "lucide-react";
+import { useChartReportGeneration } from "@/hooks/useChartReportGeneration";
 import {
   scadaAPI,
   SampleChartData,
@@ -81,9 +83,14 @@ export default function SampleChart({
 }: SampleChartProps) {
   const [chartState, setChartState] = useState<ChartState>({
     data: [],
-    loading: false,
+    loading: true,
     error: null,
   });
+  const {
+    generateChartReport,
+    generateVariableReport,
+    loading: reportLoading,
+  } = useChartReportGeneration();
 
   const [customRange, setCustomRange] = useState<{
     startDate: Date;
@@ -428,6 +435,27 @@ export default function SampleChart({
                 />
               </svg>
               <span>{chartState.loading ? "Loading..." : "Refresh"}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const reportData = chartState.data.map((point) => ({
+                  variable: variable.var_code,
+                  timestamp: point.x,
+                  value: point.y,
+                  unit: variable.unit || "",
+                }));
+                generateChartReport(
+                  reportData,
+                  `Historical Trends - ${variable.var_code}`
+                );
+              }}
+              disabled={reportLoading || chartState.data.length === 0}
+              className="ml-2 px-3 py-1 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 flex items-center space-x-1"
+              title="Générer rapport Excel"
+            >
+              <FileSpreadsheetIcon className="w-4 h-4" />
+              <span>{reportLoading ? "Export..." : "Excel"}</span>
             </button>
           </div>
         </div>

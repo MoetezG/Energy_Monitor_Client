@@ -18,6 +18,8 @@ import { Line } from "react-chartjs-2";
 import "chartjs-adapter-date-fns";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { FileSpreadsheetIcon } from "lucide-react";
+import { useChartReportGeneration } from "@/hooks/useChartReportGeneration";
 import {
   scadaAPI,
   SampleChartData,
@@ -100,6 +102,8 @@ export default function DeviceMultiVariableChart({
   const [aggregationPeriod, setAggregationPeriod] = useState<
     "hour" | "day" | "week" | "month"
   >("day");
+  const { generateChartReport, loading: reportLoading } =
+    useChartReportGeneration();
 
   const [showLegend, setShowLegend] = useState(true);
   const [normalizeData, setNormalizeData] = useState(false);
@@ -433,6 +437,31 @@ export default function DeviceMultiVariableChart({
               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
             >
               {chartState.loading ? "Loading..." : "Refresh"}
+            </button>
+
+            <button
+              onClick={() => {
+                const flatData = chartState.deviceCharts.flatMap(
+                  (deviceChart) =>
+                    deviceChart.datasets.flatMap((dataset) =>
+                      dataset.data.map((point) => ({
+                        device: deviceChart.device.name,
+                        variable:
+                          dataset.variable.name || dataset.variable.var_code,
+                        timestamp: point.x,
+                        value: point.y,
+                        unit: dataset.variable.unit || "",
+                      }))
+                    )
+                );
+                generateChartReport(flatData, "Device-Based Variable Analysis");
+              }}
+              disabled={reportLoading || chartState.deviceCharts.length === 0}
+              className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 flex items-center space-x-1"
+              title="Générer rapport Excel"
+            >
+              <FileSpreadsheetIcon className="w-4 h-4" />
+              <span>{reportLoading ? "Export..." : "Excel"}</span>
             </button>
           </div>
         </div>

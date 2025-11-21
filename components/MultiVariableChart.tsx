@@ -16,8 +16,9 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import "chartjs-adapter-date-fns";
-import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { FileSpreadsheetIcon } from "lucide-react";
+import { useChartReportGeneration } from "@/hooks/useChartReportGeneration";
 import {
   scadaAPI,
   SampleChartData,
@@ -42,7 +43,7 @@ ChartJS.register(
 interface MultiVariableChartProps {
   height?: number;
   className?: string;
-  maxVariables?: number;
+  maxVariables?: number; // Keep for backward compatibility but don't enforce
   preselectedVariable?: VariableRecord;
   preselectedDevice?: DatabaseDevice;
   singleVariableMode?: boolean;
@@ -83,7 +84,6 @@ const CHART_COLORS = [
 export default function MultiVariableChart({
   height = 500,
   className = "",
-  maxVariables = 8,
   preselectedVariable,
   preselectedDevice,
   singleVariableMode = false,
@@ -110,6 +110,8 @@ export default function MultiVariableChart({
 
   const [showLegend, setShowLegend] = useState(true);
   const [normalizeData, setNormalizeData] = useState(false);
+  const { generateChartReport, loading: reportLoading } =
+    useChartReportGeneration();
 
   // Load devices and variables
   const loadDevicesAndVariables = useCallback(async () => {
@@ -145,7 +147,7 @@ export default function MultiVariableChart({
         } else {
           // Auto-select first few variables
           autoSelectedIds = variables
-            .slice(0, Math.min(maxVariables, 4))
+            .slice(0, Math.min(variables.length, 4))
             .map((v) => v.id);
         }
 
@@ -162,12 +164,7 @@ export default function MultiVariableChart({
         error: "Failed to load devices and variables",
       }));
     }
-  }, [
-    maxVariables,
-    preselectedVariable,
-    preselectedDevice,
-    singleVariableMode,
-  ]);
+  }, [preselectedVariable, preselectedDevice, singleVariableMode]);
 
   // Load chart data for selected variables
   const loadChartData = useCallback(async () => {
@@ -526,12 +523,8 @@ export default function MultiVariableChart({
           (id) => id !== variableId
         );
       } else {
-        if (prev.selectedVariableIds.length >= maxVariables) {
-          // Replace oldest selection
-          newSelectedIds = [...prev.selectedVariableIds.slice(1), variableId];
-        } else {
-          newSelectedIds = [...prev.selectedVariableIds, variableId];
-        }
+        // Add variable without limit
+        newSelectedIds = [...prev.selectedVariableIds, variableId];
       }
 
       return {
@@ -547,129 +540,25 @@ export default function MultiVariableChart({
     >
       {/* Chart Header */}
       <div className="px-6 py-4 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Multi-Variable Comparison
-            </h3>
-            <span className="text-sm text-gray-500">
-              ({chartState.datasets.length} variables)
-            </span>
-          </div>
+        <div className="flex flex-col gap-4">
+          {/* Title Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Multi-Variable Comparison
+              </h3>
+              <span className="text-sm text-gray-500">
+                ({chartState.datasets.length} variables)
+              </span>
+            </div>
 
-          {/* Controls */}
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Time Range */}
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-600">Time:</label>
-              <div className="flex flex-col md:flex-row gap-4 items-center">
-                {/* Start Date */}
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-gray-600">
-                    Start:
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={
-                      customRange.startDate
-                        ? customRange.startDate.toISOString().slice(0, 16)
-                        : ""
-                    }
-                    onChange={(e) => {
-                      setCustomRange((prev) => ({
-                        ...prev,
-                        startDate: e.target.value
-                          ? new Date(e.target.value)
-                          : new Date(),
-                      }));
-                    }}
-                    className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* End Date */}
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-gray-600">
-                    End:
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={
-                      customRange.endDate
-                        ? customRange.endDate.toISOString().slice(0, 16)
-                        : ""
-                    }
-                    onChange={(e) => {
-                      setCustomRange((prev) => ({
-                        ...prev,
-                        endDate: e.target.value
-                          ? new Date(e.target.value)
-                          : new Date(),
-                      }));
-                    }}
-                    className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Period */}
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-gray-600">
-                    Period:
-                  </label>
-                  <select
-                    value={aggregationPeriod}
-                    onChange={(e) =>
-                      setAggregationPeriod(
-                        e.target.value as "hour" | "day" | "week" | "month"
-                      )
-                    }
-                    className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="hour">Hour</option>
-                    <option value="day">Day</option>
-                    <option value="week">Week</option>
-                    <option value="month">Month</option>
-                  </select>
-
-                  {/* Refresh Button */}
-                  <button
-                    onClick={loadChartData}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              </div>
-
-              {/* Toggle Controls */}
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center space-x-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={showLegend}
-                    onChange={(e) => setShowLegend(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-600">Legend</span>
-                </label>
-
-                <label className="flex items-center space-x-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={normalizeData}
-                    onChange={(e) => setNormalizeData(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-600">Normalize</span>
-                </label>
-              </div>
-
-              {/* Refresh Button */}
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
               <button
                 onClick={loadChartData}
                 disabled={chartState.loading}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-1"
+                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-1"
               >
                 <svg
                   className={`w-4 h-4 ${
@@ -688,181 +577,261 @@ export default function MultiVariableChart({
                 </svg>
                 <span>{chartState.loading ? "Loading..." : "Refresh"}</span>
               </button>
+
+              <button
+                onClick={() => {
+                  const flatData = chartState.datasets.flatMap((dataset) =>
+                    dataset.data.map((point) => ({
+                      variable:
+                        dataset.variable.name || dataset.variable.var_code,
+                      device: dataset.device.name,
+                      timestamp: point.x,
+                      value: point.y,
+                      unit: dataset.variable.unit || "",
+                    }))
+                  );
+                  generateChartReport(flatData, "Multi-Variable Comparison");
+                }}
+                disabled={reportLoading || chartState.datasets.length === 0}
+                className="px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center space-x-1"
+                title="Générer rapport Excel"
+              >
+                <FileSpreadsheetIcon className="w-4 h-4" />
+                <span>{reportLoading ? "Export..." : "Excel"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Controls Row */}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Time Range Controls */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-600">
+                Start:
+              </label>
+              <input
+                type="datetime-local"
+                value={
+                  customRange.startDate
+                    ? customRange.startDate.toISOString().slice(0, 16)
+                    : ""
+                }
+                onChange={(e) => {
+                  setCustomRange((prev) => ({
+                    ...prev,
+                    startDate: e.target.value
+                      ? new Date(e.target.value)
+                      : new Date(),
+                  }));
+                }}
+                className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-600">End:</label>
+              <input
+                type="datetime-local"
+                value={
+                  customRange.endDate
+                    ? customRange.endDate.toISOString().slice(0, 16)
+                    : ""
+                }
+                onChange={(e) => {
+                  setCustomRange((prev) => ({
+                    ...prev,
+                    endDate: e.target.value
+                      ? new Date(e.target.value)
+                      : new Date(),
+                  }));
+                }}
+                className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-600">
+                Period:
+              </label>
+              <select
+                value={aggregationPeriod}
+                onChange={(e) =>
+                  setAggregationPeriod(
+                    e.target.value as "hour" | "day" | "week" | "month"
+                  )
+                }
+                className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="hour">Hour</option>
+                <option value="day">Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+              </select>
+            </div>
+
+            {/* Toggle Controls */}
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center space-x-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showLegend}
+                  onChange={(e) => setShowLegend(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-600">Legend</span>
+              </label>
+
+              <label className="flex items-center space-x-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={normalizeData}
+                  onChange={(e) => setNormalizeData(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-600">Normalize</span>
+              </label>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Variable Selection */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex flex-col space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-gray-700">
-                Select Variables to Compare (max {maxVariables})
-              </h4>
-              <span className="text-sm text-gray-500">
-                {chartState.selectedVariableIds.length} of {maxVariables}{" "}
-                selected
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
-              {chartState.variables.map((variable) => {
-                const isSelected = chartState.selectedVariableIds.includes(
-                  variable.id
-                );
-                const deviceName = getDeviceName(variable.device_id);
-
-                return (
-                  <label
-                    key={variable.id}
-                    className={`flex items-center space-x-2 p-2 rounded cursor-pointer text-sm ${
-                      isSelected
-                        ? "bg-blue-100 text-blue-900 border border-blue-200"
-                        : "bg-white hover:bg-gray-100 border border-gray-200"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleVariableToggle(variable.id)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="flex-1 truncate">
-                      <span className="font-medium">{deviceName}</span>
-                      <span className="text-gray-600 ml-1">
-                        - {variable.name || variable.var_code}
-                      </span>
-                      {variable.unit && !normalizeData && (
-                        <span className="text-gray-500 ml-1">
-                          ({variable.unit})
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+      {/* Variable Selection */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="flex flex-col space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-gray-700">
+              Select Variables to Compare
+            </h4>
+            <span className="text-sm text-gray-500">
+              {chartState.selectedVariableIds.length} selected
+            </span>
           </div>
-        </div>
 
-        {/* Chart Content */}
-        <div className="p-6">
-          {chartState.loading && (
-            <div
-              className="flex items-center justify-center"
-              style={{ height }}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-gray-600">Loading chart data...</span>
-              </div>
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+            {chartState.variables.map((variable) => {
+              const isSelected = chartState.selectedVariableIds.includes(
+                variable.id
+              );
+              const deviceName = getDeviceName(variable.device_id);
 
-          {chartState.error && (
-            <div
-              className="flex items-center justify-center"
-              style={{ height }}
-            >
-              <div className="text-center">
-                <svg
-                  className="w-12 h-12 text-red-400 mx-auto mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              return (
+                <label
+                  key={variable.id}
+                  className={`flex items-center space-x-2 p-2 rounded cursor-pointer text-sm ${
+                    isSelected
+                      ? "bg-blue-100 text-blue-900 border border-blue-200"
+                      : "bg-white hover:bg-gray-100 border border-gray-200"
+                  }`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-9-7a9 9 0 1118 0 9 9 0 01-18 0z"
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleVariableToggle(variable.id)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                </svg>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Chart Error
-                </h3>
-                <p className="text-gray-600 mb-4">{chartState.error}</p>
-                <button
-                  onClick={loadChartData}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Try Again
-                </button>
-              </div>
+                  <span className="flex-1 truncate">
+                    <span className="font-medium">{deviceName}</span>
+                    <span className="text-gray-600 ml-1">
+                      - {variable.name || variable.var_code}
+                    </span>
+                    {variable.unit && !normalizeData && (
+                      <span className="text-gray-500 ml-1">
+                        ({variable.unit})
+                      </span>
+                    )}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Chart Content */}
+      <div className="p-6">
+        {chartState.loading && (
+          <div className="flex items-center justify-center" style={{ height }}>
+            <div className="flex items-center space-x-3">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-gray-600">Loading chart data...</span>
             </div>
-          )}
+          </div>
+        )}
 
-          {!chartState.loading && !chartState.error && (
-            <>
-              {chartState.datasets.length === 0 ? (
-                <div
-                  className="flex items-center justify-center"
-                  style={{ height }}
-                >
-                  <div className="text-center">
-                    <svg
-                      className="w-12 h-12 text-gray-400 mx-auto mb-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                      />
-                    </svg>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Select Variables
-                    </h3>
-                    <p className="text-gray-600">
-                      Choose variables from the list above to start comparing
-                      their trends.
-                    </p>
-                  </div>
+        {chartState.error && (
+          <div className="flex items-center justify-center" style={{ height }}>
+            <div className="text-center">
+              <svg
+                className="w-12 h-12 text-red-400 mx-auto mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-9-7a9 9 0 1118 0 9 9 0 01-18 0z"
+                />
+              </svg>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Chart Error
+              </h3>
+              <p className="text-gray-600 mb-4">{chartState.error}</p>
+              <button
+                onClick={loadChartData}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!chartState.loading && !chartState.error && (
+          <>
+            {chartState.datasets.length === 0 ? (
+              <div
+                className="flex items-center justify-center"
+                style={{ height }}
+              >
+                <div className="text-center">
+                  <svg
+                    className="w-12 h-12 text-gray-400 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Select Variables
+                  </h3>
+                  <p className="text-gray-600">
+                    Choose variables from the list above to start comparing
+                    their trends.
+                  </p>
                 </div>
-              ) : (
-                <div style={{ height }}>
-                  {(() => {
-                    try {
-                      // Ensure we have valid data before rendering
-                      if (
-                        !chartData.datasets ||
-                        chartData.datasets.length === 0
-                      ) {
-                        return (
-                          <div className="flex items-center justify-center h-full">
-                            <div className="text-center">
-                              <svg
-                                className="w-8 h-8 text-gray-400 mx-auto mb-2"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                                />
-                              </svg>
-                              <p className="text-sm text-gray-600">
-                                No valid chart data
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return <Line data={chartData} options={chartOptions} />;
-                    } catch (error) {
-                      console.error("Chart rendering error:", error);
+              </div>
+            ) : (
+              <div style={{ height }}>
+                {(() => {
+                  try {
+                    // Ensure we have valid data before rendering
+                    if (
+                      !chartData.datasets ||
+                      chartData.datasets.length === 0
+                    ) {
                       return (
                         <div className="flex items-center justify-center h-full">
                           <div className="text-center">
                             <svg
-                              className="w-8 h-8 text-red-400 mx-auto mb-2"
+                              className="w-8 h-8 text-gray-400 mx-auto mb-2"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -871,49 +840,75 @@ export default function MultiVariableChart({
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M12 9v2m0 4h.01m-9-7a9 9 0 1118 0 9 9 0 01-18 0z"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                               />
                             </svg>
-                            <p className="text-sm text-red-600">
-                              Chart rendering error
+                            <p className="text-sm text-gray-600">
+                              No valid chart data
                             </p>
                           </div>
                         </div>
                       );
                     }
-                  })()}
-                </div>
-              )}
-            </>
-          )}
-        </div>
 
-        {/* Chart Footer */}
-        {!chartState.loading &&
-          !chartState.error &&
-          chartState.datasets.length > 0 && (
-            <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <div className="flex items-center space-x-4">
-                  <span>Variables: {chartState.datasets.length}</span>
-                  <span>
-                    Data Points:{" "}
-                    {chartState.datasets.reduce(
-                      (sum, d) => sum + d.data.length,
-                      0
-                    )}
-                  </span>
-                  {normalizeData && (
-                    <span className="text-purple-600 font-medium">
-                      Normalized View
-                    </span>
-                  )}
-                </div>
-                <div>Last Updated: {new Date().toLocaleTimeString()}</div>
+                    return <Line data={chartData} options={chartOptions} />;
+                  } catch (error) {
+                    console.error("Chart rendering error:", error);
+                    return (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <svg
+                            className="w-8 h-8 text-red-400 mx-auto mb-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-9-7a9 9 0 1118 0 9 9 0 01-18 0z"
+                            />
+                          </svg>
+                          <p className="text-sm text-red-600">
+                            Chart rendering error
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                })()}
               </div>
-            </div>
-          )}
+            )}
+          </>
+        )}
       </div>
+
+      {/* Chart Footer */}
+      {!chartState.loading &&
+        !chartState.error &&
+        chartState.datasets.length > 0 && (
+          <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <div className="flex items-center space-x-4">
+                <span>Variables: {chartState.datasets.length}</span>
+                <span>
+                  Data Points:{" "}
+                  {chartState.datasets.reduce(
+                    (sum, d) => sum + d.data.length,
+                    0
+                  )}
+                </span>
+                {normalizeData && (
+                  <span className="text-purple-600 font-medium">
+                    Normalized View
+                  </span>
+                )}
+              </div>
+              <div>Last Updated: {new Date().toLocaleTimeString()}</div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

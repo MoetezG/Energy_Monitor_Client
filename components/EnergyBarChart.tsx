@@ -16,7 +16,9 @@ import {
   TrendingDownIcon,
   DownloadIcon,
   BarChart3Icon,
+  FileSpreadsheetIcon,
 } from "lucide-react";
+import { useChartReportGeneration } from "@/hooks/useChartReportGeneration";
 
 interface EnergyData {
   label: string;
@@ -149,6 +151,8 @@ export default function EnergyBarChart({
   animated?: boolean;
 }) {
   const colors = themeColors[theme];
+  const { generateChartReport, loading: reportLoading } =
+    useChartReportGeneration();
   // Handle empty or invalid data
   if (!data || data.length === 0) {
     return (
@@ -258,14 +262,34 @@ export default function EnergyBarChart({
           </div>
           <div className="flex items-center gap-2">
             {enableExport && (
-              <button
-                onClick={exportData}
-                className="inline-flex items-center px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
-                title="Exporter les données"
-              >
-                <DownloadIcon className="w-4 h-4 mr-1" />
-                Export
-              </button>
+              <>
+                <button
+                  onClick={exportData}
+                  className="inline-flex items-center px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                  title="Exporter CSV"
+                >
+                  <DownloadIcon className="w-4 h-4 mr-1" />
+                  CSV
+                </button>
+                <button
+                  onClick={() => {
+                    const reportData = data.map((item) => ({
+                      label: item.label,
+                      kWh: item.kWh,
+                      trend: item.trend || "stable",
+                      previousValue: item.previousValue || 0,
+                      efficiency: item.efficiency || 0,
+                    }));
+                    generateChartReport(reportData, title);
+                  }}
+                  disabled={reportLoading}
+                  className="inline-flex items-center px-3 py-2 text-xs font-medium rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 transition-colors disabled:opacity-50"
+                  title="Générer rapport Excel"
+                >
+                  <FileSpreadsheetIcon className="w-4 h-4 mr-1" />
+                  {reportLoading ? "..." : "Excel"}
+                </button>
+              </>
             )}
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
               {data.length} entrées

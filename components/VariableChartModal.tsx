@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import MultiVariableChart from "./MultiVariableChart";
 import { VariableRecord, DatabaseDevice } from "@/lib/api";
+import { FileSpreadsheetIcon } from "lucide-react";
+import { useChartReportGeneration } from "@/hooks/useChartReportGeneration";
 
 interface VariableChartModalProps {
   isOpen: boolean;
@@ -29,6 +31,8 @@ export default function VariableChartModal({
   device,
 }: VariableChartModalProps) {
   const [chartKey, setChartKey] = useState(0);
+  const { generateVariableReport, loading: reportLoading } =
+    useChartReportGeneration();
 
   // Reset chart when modal opens/closes or variable changes
   useEffect(() => {
@@ -106,24 +110,40 @@ export default function VariableChartModal({
                 </div>
               </div>
 
-              <button
-                onClick={handleClose}
-                className="rounded-lg p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    if (variableRecord) {
+                      generateVariableReport(variableRecord.id.toString());
+                    }
+                  }}
+                  disabled={reportLoading || !variableRecord}
+                  className="px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center space-x-2 transition-colors"
+                  title="Générer rapport Excel"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+                  <FileSpreadsheetIcon className="w-4 h-4" />
+                  <span>{reportLoading ? "Export..." : "Export Excel"}</span>
+                </button>
+
+                <button
+                  onClick={handleClose}
+                  className="rounded-lg p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Variable Details */}

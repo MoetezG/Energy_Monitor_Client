@@ -1,5 +1,7 @@
 "use client";
 import { PieChart, Pie, Tooltip, Cell, ResponsiveContainer } from "recharts";
+import { FileSpreadsheetIcon } from "lucide-react";
+import { useChartReportGeneration } from "@/hooks/useChartReportGeneration";
 
 const COLORS = [
   "#3b82f6", // Blue
@@ -58,6 +60,8 @@ export default function EnergyPieChart({
   data: { name: string; value: number }[];
 }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
+  const { generateChartReport, loading: reportLoading } =
+    useChartReportGeneration();
 
   return (
     <div className="card-glass w-full min-h-[500px] p-8 relative">
@@ -73,10 +77,23 @@ export default function EnergyPieChart({
                 Breakdown of consumption by category
               </p>
             </div>
-            <div className="bg-linear-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-full border border-blue-200/50">
-              <span className="text-sm font-semibold text-blue-700">
-                Total: {total.toLocaleString()} kWh
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="bg-linear-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-full border border-blue-200/50">
+                <span className="text-sm font-semibold text-blue-700">
+                  Total: {total.toLocaleString()} kWh
+                </span>
+              </div>
+              <button
+                onClick={() =>
+                  generateChartReport(data, "Energy Distribution Analysis")
+                }
+                disabled={reportLoading}
+                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 transition-colors disabled:opacity-50"
+                title="Générer rapport Excel"
+              >
+                <FileSpreadsheetIcon className="w-4 h-4 mr-2" />
+                {reportLoading ? "Génération..." : "Export Excel"}
+              </button>
             </div>
           </div>
           <div className="w-16 h-1 bg-linear-to-r from-blue-400 to-purple-400 rounded-full"></div>
