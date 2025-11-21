@@ -88,10 +88,13 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Consommation:</span>
+            <span className="text-sm text-gray-600">Énergie consommée:</span>
             <span className="text-sm font-bold text-blue-600">
               {value.toLocaleString()} kWh
             </span>
+          </div>
+          <div className="text-xs text-gray-500 italic">
+            (Consommation cumulée sur la période)
           </div>
 
           {data.efficiency && (
@@ -133,7 +136,7 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 
 export default function EnergyBarChart({
   data,
-  title = "Consommation (kWh)",
+  title = "Consommation d'énergie (kWh)",
   className = "",
   theme = "blue",
   showAverage = true,

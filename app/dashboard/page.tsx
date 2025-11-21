@@ -83,14 +83,69 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Energy Usage
+                Energy Consumption (Today)
               </p>
               <div className="flex items-baseline mb-3">
                 <p className="text-4xl font-bold text-gray-900">
                   {loading ? "..." : "--"}
                 </p>
                 <span className="ml-2 text-xl font-semibold text-gray-600">
-                  MW
+                  kWh
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 flex items-center font-medium">
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+                {loading ? "Loading..." : "No data available"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="group bg-white/95 backdrop-blur-sm rounded-3xl shadow-lg p-8 hover:shadow-2xl transition-all duration-500 hover:scale-105 border border-orange-100 relative overflow-hidden">
+          <div className="absolute inset-0 bg-linear-to-br from-orange-500/5 to-orange-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="p-4 bg-linear-to-br from-orange-500 to-orange-600 rounded-2xl shadow-xl group-hover:shadow-orange-200/50 transition-all duration-300">
+                <svg
+                  className="w-8 h-8 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              </div>
+              <div className="w-12 h-2 bg-orange-100 rounded-full">
+                <div className="w-8 h-2 bg-orange-500 rounded-full"></div>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
+                Current Power (Real-time)
+              </p>
+              <div className="flex items-baseline mb-3">
+                <p className="text-4xl font-bold text-gray-900">
+                  {loading ? "..." : "--"}
+                </p>
+                <span className="ml-2 text-xl font-semibold text-gray-600">
+                  kW
                 </span>
               </div>
               <p className="text-sm text-gray-500 flex items-center font-medium">

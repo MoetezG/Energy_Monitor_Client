@@ -9,6 +9,7 @@ import ReportGenerator from "@/components/ReportGenerator";
 import DashboardLayout from "@/components/DashboardLayout";
 import EnergyBarChart from "@/components/EnergyBarChart";
 import EnergyPieChart from "@/components/EnergyPieChart";
+import PowerMonitorChart from "@/components/PowerMonitorChart";
 
 import { energyPie } from "@/app/mock/energy";
 
@@ -31,6 +32,9 @@ export default function AnalyticsPage() {
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [activeChart, setActiveChart] = useState<"device" | "multi">("device");
+  const [activeEnergyTab, setActiveEnergyTab] = useState<
+    "consumption" | "power"
+  >("consumption");
 
   // Use WebSocket hook for real-time device status
   const { deviceStatuses } = useRealTimeWebSocket();
@@ -44,6 +48,22 @@ export default function AnalyticsPage() {
     daily: Array<{ label: string; kWh: number }>;
     hourly: Array<{ label: string; kWh: number }>;
     zones: Array<{ zone: string; kWh: number }>;
+    realTimePower?: Array<{
+      deviceId: string;
+      zone: string;
+      currentPower: number;
+      unit: string;
+      timestamp: Date;
+    }>;
+    metadata?: {
+      energyUnit: string;
+      powerUnit: string;
+      lastUpdated: string;
+      description: {
+        energy: string;
+        power: string;
+      };
+    };
   } | null>(null);
 
   useEffect(() => {
@@ -289,28 +309,143 @@ export default function AnalyticsPage() {
 
         {!state.loading && (
           <div className="space-y-8">
-            {/* Charts Section */}
+            {/* Energy & Power Charts Section */}
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200/50">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">
-                Energy Charts
-              </h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Energy & Power Analysis
+                </h3>
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setActiveEnergyTab("consumption")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      activeEnergyTab === "consumption"
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    📊 Consommation (kWh)
+                  </button>
+                  <button
+                    onClick={() => setActiveEnergyTab("power")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      activeEnergyTab === "power"
+                        ? "bg-white text-orange-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    ⚡ Puissance (kW)
+                  </button>
+                </div>
+              </div>
 
-              {energy && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div>
-                    <h4 className="text-lg font-semibold mb-4">
-                      Daily Energy Usage
-                    </h4>
-                    <EnergyBarChart data={energy.daily} title="Daily Usage" />
+              {activeEnergyTab === "consumption" && energy && (
+                <div className="space-y-6">
+                  <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <span className="text-sm font-medium text-blue-800">
+                        Consommation d&apos;énergie cumulée
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-700">
+                      Données d&apos;énergie (kWh) accumulées sur des périodes
+                      de temps définies. Idéal pour analyser les tendances de
+                      consommation et calculer les coûts énergétiques.
+                    </p>
                   </div>
-                  <div>
-                    <h4 className="text-lg font-semibold mb-4">
-                      Energy Distribution
-                    </h4>
-                    <EnergyPieChart data={energyPie} />
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <span>📈</span>
+                        Consommation quotidienne (kWh)
+                      </h4>
+                      <EnergyBarChart
+                        data={energy.daily}
+                        title="Consommation quotidienne cumulée"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <span>🥧</span>
+                        Répartition par catégorie
+                      </h4>
+                      <EnergyPieChart data={energyPie} />
+                    </div>
                   </div>
+
+                  {energy.hourly && (
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <span>⏰</span>
+                        Consommation par tranche horaire (kWh)
+                      </h4>
+                      <EnergyBarChart
+                        data={energy.hourly}
+                        title="Consommation horaire cumulée"
+                        theme="green"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
+
+              {activeEnergyTab === "power" &&
+                energy &&
+                energy.realTimePower && (
+                  <div className="space-y-6">
+                    <div className="bg-orange-50/50 border border-orange-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium text-orange-800">
+                          Puissance instantanée temps réel
+                        </span>
+                      </div>
+                      <p className="text-xs text-orange-700">
+                        Données de puissance (kW) mesurées en temps réel à
+                        l&apos;instant T. Idéal pour surveiller la charge
+                        actuelle et détecter les pics de consommation.
+                      </p>
+                    </div>
+
+                    <PowerMonitorChart
+                      data={energy.realTimePower.map((item) => ({
+                        ...item,
+                        timestamp: new Date(item.timestamp),
+                      }))}
+                      title="Surveillance puissance temps réel"
+                    />
+                  </div>
+                )}
+
+              {activeEnergyTab === "power" &&
+                (!energy || !energy.realTimePower) && (
+                  <div className="text-center py-12 bg-orange-50/50 rounded-xl border border-orange-200">
+                    <div className="text-orange-600 mb-4">
+                      <svg
+                        className="w-12 h-12 mx-auto"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                    </div>
+                    <h4 className="text-lg font-semibold text-orange-800 mb-2">
+                      Données de puissance non disponibles
+                    </h4>
+                    <p className="text-orange-700 text-sm">
+                      Connectez des dispositifs pour voir les données de
+                      puissance en temps réel.
+                    </p>
+                  </div>
+                )}
             </div>
 
             {/*  Charts */}

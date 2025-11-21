@@ -165,15 +165,13 @@ export default function FloorMap() {
       </div>
 
       {/* Floor Map with fixed dimensions */}
-      <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-lg w-fit mx-auto">
+      <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-lg w-fit ">
         <div className="bg-linear-to-r from-gray-700 to-gray-800 px-4 py-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-white font-medium">
-              {currentFloor.name} - Interactive Floor Plan (1200×800)
-            </h4>
+            <h4 className="text-white font-medium">{currentFloor.name}</h4>
             <div className="text-gray-300 text-sm">
-              Rooms: {currentFloor.rooms.length} | Total Power:{" "}
-              {currentFloor.rooms.reduce((sum, room) => sum + room.power, 0)}W
+              Rooms: {currentFloor.rooms.length} | Total Power (Real-time):{" "}
+              {currentFloor.rooms.reduce((sum, room) => sum + room.power, 0)}kW
             </div>
           </div>
         </div>
@@ -215,7 +213,8 @@ export default function FloorMap() {
                 onClick={() =>
                   alert(
                     `🏠 Room ${room.id}\n` +
-                      `⚡ Power: ${room.power}kW\n` +
+                      `⚡ Instantaneous Power: ${room.power}kW\n` +
+                      `📊 This shows current real-time power consumption\n` +
                       `❄️ AC: ${room.ac ? "ON" : "OFF"}\n` +
                       `💡 Lights: ${room.lights ? "ON" : "OFF"}\n` +
                       `📍 Floor: ${currentFloor.name}`
@@ -279,13 +278,34 @@ export default function FloorMap() {
 
         {/* Instructions for positioning rooms */}
         <div className="bg-gray-100 px-4 py-3 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            <span className="font-medium">💡 Setup Guide:</span> Replace floor
-            plan images in{" "}
-            <code className="bg-gray-200 px-1 rounded">/public/floors/</code>{" "}
-            and adjust room coordinates (x, y) to match actual room positions on
-            your floor plans.
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">💡 Setup Guide:</span> Replace floor
+              plan images in{" "}
+              <code className="bg-gray-200 px-1 rounded">/public/floors/</code>{" "}
+              and adjust room coordinates (x, y) to match actual room positions
+              on your floor plans.
+            </p>
+            <div className="flex items-center space-x-4 text-xs">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-green-600 rounded mr-1"></div>
+                <span className="text-gray-600">≤300kW</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-yellow-600 rounded mr-1"></div>
+                <span className="text-gray-600">301-400kW</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-red-600 rounded mr-1"></div>
+                <span className="text-gray-600">&gt;400kW</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-gray-500 border-t border-gray-300 pt-2">
+            <strong>Power Display:</strong> Values shown are instantaneous power
+            consumption (kW), updated in real-time. For accumulated energy
+            consumption over time (kWh), check the Analytics dashboard.
+          </div>
         </div>
       </div>
     </div>

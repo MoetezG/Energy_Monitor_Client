@@ -17,7 +17,7 @@ export default function FloorMapPage() {
         </div>
 
         {/* Floor Map Component */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-gray-200/50">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-2 border border-gray-200/50">
           <FloorMap />
         </div>
       </div>

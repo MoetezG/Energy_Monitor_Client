@@ -1,16 +1,30 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from "react";
 
 export interface RealtimeData {
   deviceId: string;
   timestamp: string;
-  consumption: number;
+  // Energy consumption accumulated over time (kWh)
+  energyConsumption: number;
+  energyConsumptionUnit: "kWh";
+  // Instantaneous power consumption (kW)
+  instantaneousPower: number;
+  instantaneousPowerUnit: "kW";
   voltage: number;
+  voltageUnit: "V";
   current: number;
-  power: number;
+  currentUnit: "A";
   temperature: number;
+  temperatureUnit: "C";
   humidity: number;
+  humidityUnit: "%";
+
+  // Legacy fields for backward compatibility
+  /** @deprecated Use instantaneousPower instead */
+  consumption: number;
+  /** @deprecated Use instantaneousPower instead */
+  power: number;
 }
 
 export function useWebSocket(url: string) {
@@ -39,7 +53,7 @@ export function useWebSocket(url: string) {
         ws.onopen = () => {
           setIsConnected(true);
           setError(null);
-          console.log('WebSocket connected');
+          console.log("WebSocket connected");
         };
 
         ws.onmessage = (event) => {
@@ -47,28 +61,28 @@ export function useWebSocket(url: string) {
             const receivedData = JSON.parse(event.data);
             setData(receivedData);
           } catch (err) {
-            console.error('Error parsing WebSocket data:', err);
+            console.error("Error parsing WebSocket data:", err);
           }
         };
 
         ws.onclose = () => {
           setIsConnected(false);
-          console.log('WebSocket disconnected');
-          
+          console.log("WebSocket disconnected");
+
           // Attempt to reconnect after 5 seconds
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('Attempting to reconnect...');
+            console.log("Attempting to reconnect...");
             connect();
           }, 5000);
         };
 
         ws.onerror = (error) => {
-          setError('WebSocket connection error');
-          console.error('WebSocket error:', error);
+          setError("WebSocket connection error");
+          console.error("WebSocket error:", error);
         };
       } catch (err) {
-        setError('Failed to connect to WebSocket');
-        console.error('WebSocket connection failed:', err);
+        setError("Failed to connect to WebSocket");
+        console.error("WebSocket connection failed:", err);
       }
     };
 
@@ -98,6 +112,6 @@ export function useWebSocket(url: string) {
 
 // Hook for energy monitoring WebSocket
 export function useEnergyWebSocket() {
-  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:5000/ws';
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:5000/ws";
   return useWebSocket(wsUrl);
 }

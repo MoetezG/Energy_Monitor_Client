@@ -44,8 +44,9 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
               {data.value.toLocaleString()} kWh
             </p>
             <p className="text-xs text-gray-500">
-              {((data.value / total) * 100).toFixed(1)}% of total
+              {((data.value / total) * 100).toFixed(1)}% du total
             </p>
+            <p className="text-xs text-gray-400 italic">(Énergie cumulée)</p>
           </div>
         </div>
       </div>
@@ -71,10 +72,11 @@ export default function EnergyPieChart({
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold bg-linear-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                Energy Distribution Analysis
+                Répartition de l&apos;énergie consommée
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Breakdown of consumption by category
+                Distribution de la consommation énergétique cumulée par
+                catégorie
               </p>
             </div>
             <div className="flex items-center gap-3">
