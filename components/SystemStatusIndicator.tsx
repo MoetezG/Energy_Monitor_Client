@@ -40,11 +40,11 @@ export function SystemStatusIndicator({
   }, [systemStatus.lastHeartbeat]);
 
   const getStatusColor = () => {
-    if (!isConnected) return "bg-gray-400";
-    if (systemStatus.isOnline && edsStatus?.online) return "bg-green-400";
-    if (edsStatus?.online === false) return "bg-red-400";
-    if (systemStatus.isOnline) return "bg-yellow-400";
-    return "bg-red-400";
+    if (!isConnected) return "status-unknown";
+    if (systemStatus.isOnline && edsStatus?.online) return "status-online";
+    if (edsStatus?.online === false) return "status-offline";
+    if (systemStatus.isOnline) return "status-warning";
+    return "status-offline";
   };
 
   const getStatusText = () => {
@@ -59,15 +59,9 @@ export function SystemStatusIndicator({
     <div className={`flex items-center space-x-2 ${className}`}>
       {/* Status indicator dot with pulse animation for online status */}
       <div className="relative">
-        <div
-          className={`w-3 h-3 rounded-full ${getStatusColor()} ${
-            systemStatus.isOnline && edsStatus?.online && isConnected
-              ? "animate-pulse"
-              : ""
-          }`}
-        />
+        <div className={`status-dot ${getStatusColor()}`} />
         {systemStatus.isOnline && edsStatus?.online && isConnected && (
-          <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-400 animate-ping opacity-75" />
+          <div className="absolute inset-0 status-dot bg-green-400 animate-ping opacity-75" />
         )}
       </div>
 

@@ -120,7 +120,7 @@ export interface SampleChartData {
 export interface ChartQueryParams {
   startTime: string;
   endTime: string;
-  period: "day" | "week" | "month";
+  period: "hour" | "day" | "week" | "month";
 }
 
 class ApiClient {

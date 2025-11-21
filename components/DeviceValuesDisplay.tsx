@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
 import useRealTimeWebSocket from "@/hooks/useRealTimeWebSocket";
+import VariableChartModal from "./VariableChartModal";
 
 interface DeviceValue {
   deviceId: number;
@@ -39,16 +40,30 @@ export default function DeviceValuesDisplay({
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [selectedVariableForChart, setSelectedVariableForChart] =
+    useState<DeviceValue | null>(null);
 
   // WebSocket hook for real-time data
   const {
     realTimeData: wsRealTimeData,
+    deviceStatuses: wsDeviceStatuses,
     isConnected: wsIsConnected,
     error: wsError,
     loading: wsLoading,
     lastUpdate: wsLastUpdate,
-    rawData: wsRawData,
   } = useRealTimeWebSocket();
+
+  // Helper function to get device status
+  const getDeviceStatus = useCallback(
+    (deviceId: number) => {
+      if (useWebSocket && wsDeviceStatuses.length > 0) {
+        return wsDeviceStatuses.find((ds) => ds.device_id === deviceId);
+      }
+      return null;
+    },
+    [useWebSocket, wsDeviceStatuses]
+  );
 
   // Show error if WebSocket is enabled but there's an error
   const displayError = error || (useWebSocket ? wsError : null);
@@ -110,7 +125,7 @@ export default function DeviceValuesDisplay({
     } finally {
       setIsRefreshing(false);
     }
-  }, [devices, variables, useWebSocket, wsRealTimeData, wsLastUpdate]);
+  }, [devices, useWebSocket, wsRealTimeData, wsLastUpdate]);
 
   useEffect(() => {
     loadDevicesAndVariables();
@@ -229,6 +244,29 @@ export default function DeviceValuesDisplay({
     }
   };
 
+  const handleVariableClick = (deviceValue: DeviceValue) => {
+    setSelectedVariableForChart(deviceValue);
+    setIsChartModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsChartModalOpen(false);
+    setSelectedVariableForChart(null);
+  };
+
+  // Helper to get variable record and device for the modal
+  const getVariableRecord = (deviceValue: DeviceValue) => {
+    return variables.find(
+      (v) =>
+        v.var_code === deviceValue.variableCode &&
+        v.device_id === deviceValue.deviceId
+    );
+  };
+
+  const getDevice = (deviceValue: DeviceValue) => {
+    return devices.find((d) => d.id === deviceValue.deviceId);
+  };
+
   if (displayLoading) {
     return (
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
@@ -284,6 +322,52 @@ export default function DeviceValuesDisplay({
                   <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
                 )}
               </div>
+
+              {/* Real-time Device Status Overview */}
+              {useWebSocket && wsDeviceStatuses.length > 0 && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    Device Status Overview
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    {wsDeviceStatuses.map((deviceStatus) => (
+                      <div
+                        key={deviceStatus.device_id}
+                        className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                          deviceStatus.status === "online"
+                            ? "bg-green-100 text-green-800 border border-green-200"
+                            : deviceStatus.status === "warning"
+                            ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                            : "bg-red-100 text-red-800 border border-red-200"
+                        }`}
+                        title={`${deviceStatus.online_variables}/${
+                          deviceStatus.total_variables
+                        } variables online${
+                          deviceStatus.offline_variables.length > 0
+                            ? ". Offline: " +
+                              deviceStatus.offline_variables.join(", ")
+                            : ""
+                        }`}
+                      >
+                        <div
+                          className={`w-2 h-2 rounded-full mr-2 ${
+                            deviceStatus.status === "online"
+                              ? "bg-green-500"
+                              : deviceStatus.status === "warning"
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
+                          }`}
+                        />
+                        <span className="mr-2">{deviceStatus.device_name}</span>
+                        <span className="text-xs opacity-75">
+                          ({deviceStatus.online_variables}/
+                          {deviceStatus.total_variables})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
@@ -298,11 +382,24 @@ export default function DeviceValuesDisplay({
                 className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
               >
                 <option value="">All Devices</option>
-                {devices.map((device) => (
-                  <option key={device.id} value={device.id}>
-                    {device.name || `Device ${device.scada_id}`}
-                  </option>
-                ))}
+                {devices.map((device) => {
+                  const deviceStatus = getDeviceStatus(device.id);
+                  const statusIcon =
+                    deviceStatus?.status === "online"
+                      ? "🟢"
+                      : deviceStatus?.status === "warning"
+                      ? "🟡"
+                      : deviceStatus?.status === "offline"
+                      ? "🔴"
+                      : "";
+                  return (
+                    <option key={device.id} value={device.id}>
+                      {statusIcon} {device.name || `Device ${device.scada_id}`}
+                      {deviceStatus &&
+                        ` (${deviceStatus.online_variables}/${deviceStatus.total_variables})`}
+                    </option>
+                  );
+                })}
               </select>
 
               {/* View Mode */}
@@ -421,19 +518,77 @@ export default function DeviceValuesDisplay({
                 {filteredDeviceValues.map((deviceValue, index) => (
                   <div
                     key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`}
-                    className="group bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:scale-105 transition-all duration-300"
+                    onClick={() => handleVariableClick(deviceValue)}
+                    title="Click to view variable chart"
+                    className={`group bg-linear-to-br from-gray-50 to-white border rounded-xl p-4 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer relative ${(() => {
+                      const deviceStatus = getDeviceStatus(
+                        deviceValue.deviceId
+                      );
+                      if (deviceStatus?.status === "offline")
+                        return "border-red-300 bg-red-50";
+                      if (deviceStatus?.status === "warning")
+                        return "border-yellow-300 bg-yellow-50";
+                      return "border-gray-200";
+                    })()}`}
                   >
+                    {/* Chart icon indicator */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="bg-blue-100 p-1 rounded-lg">
+                        <svg
+                          className="w-4 h-4 text-blue-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                          />
+                        </svg>
+                      </div>
+                    </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                          deviceValue.status
-                        )}`}
-                      >
-                        {getStatusIcon(deviceValue.status)}
-                        <span className="ml-1 capitalize">
-                          {deviceValue.status}
+                      <div className="flex items-center space-x-2">
+                        {/* Variable Status */}
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            deviceValue.status
+                          )}`}
+                        >
+                          {getStatusIcon(deviceValue.status)}
+                          <span className="ml-1 capitalize">
+                            {deviceValue.status}
+                          </span>
                         </span>
-                      </span>
+
+                        {/* Device Status Indicator */}
+                        {(() => {
+                          const deviceStatus = getDeviceStatus(
+                            deviceValue.deviceId
+                          );
+                          if (deviceStatus) {
+                            return (
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  deviceStatus.status === "online"
+                                    ? "bg-green-100 text-green-700 border border-green-200"
+                                    : deviceStatus.status === "warning"
+                                    ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
+                                    : "bg-red-100 text-red-700 border border-red-200"
+                                }`}
+                                title={`Device ${deviceStatus.status}: ${deviceStatus.online_variables}/${deviceStatus.total_variables} variables online`}
+                              >
+                                <span className="text-xs">
+                                  Device {deviceStatus.status.toUpperCase()}
+                                </span>
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </div>
 
                     <h4 className="text-sm font-semibold flex items-center gap-1 justify-baseline text-gray-900 mb-1 truncate">
@@ -482,68 +637,167 @@ export default function DeviceValuesDisplay({
                       Value
                     </th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                      Status
+                      Variable Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                      Device Status
                     </th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
                       Last Update
                     </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredDeviceValues.map((deviceValue, index) => (
-                    <tr
-                      key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {deviceValue.deviceName}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          ID: {deviceValue.deviceId}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {deviceValue.variableName}
-                        </div>
-                        <div className="text-xs text-gray-500 font-mono">
-                          {deviceValue.variableCode}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-lg font-semibold text-gray-900">
-                          {typeof deviceValue.value === "number"
-                            ? deviceValue.value.toFixed(2)
-                            : deviceValue.value}
-                          <span className="text-sm font-normal text-gray-600 ml-2">
-                            {deviceValue.unit}
+                  {filteredDeviceValues.map((deviceValue, index) => {
+                    const deviceStatus = getDeviceStatus(deviceValue.deviceId);
+                    return (
+                      <tr
+                        key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`}
+                        onClick={() => handleVariableClick(deviceValue)}
+                        title="Click to view variable chart"
+                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                          deviceStatus?.status === "offline"
+                            ? "bg-red-25"
+                            : deviceStatus?.status === "warning"
+                            ? "bg-yellow-25"
+                            : ""
+                        }`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {deviceValue.deviceName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            ID: {deviceValue.deviceId}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {deviceValue.variableName}
+                          </div>
+                          <div className="text-xs text-gray-500 font-mono">
+                            {deviceValue.variableCode}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-lg font-semibold text-gray-900">
+                            {typeof deviceValue.value === "number"
+                              ? deviceValue.value.toFixed(2)
+                              : deviceValue.value}
+                            <span className="text-sm font-normal text-gray-600 ml-2">
+                              {deviceValue.unit}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              deviceValue.status
+                            )}`}
+                          >
+                            {getStatusIcon(deviceValue.status)}
+                            <span className="ml-1 capitalize">
+                              {deviceValue.status}
+                            </span>
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            deviceValue.status
-                          )}`}
-                        >
-                          {getStatusIcon(deviceValue.status)}
-                          <span className="ml-1 capitalize">
-                            {deviceValue.status}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {deviceValue.timestamp.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4">
+                          {deviceStatus ? (
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  deviceStatus.status === "online"
+                                    ? "bg-green-100 text-green-800"
+                                    : deviceStatus.status === "warning"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                <div
+                                  className={`w-2 h-2 rounded-full mr-2 ${
+                                    deviceStatus.status === "online"
+                                      ? "bg-green-500"
+                                      : deviceStatus.status === "warning"
+                                      ? "bg-yellow-500"
+                                      : "bg-red-500"
+                                  }`}
+                                />
+                                {deviceStatus.status.toUpperCase()}
+                              </span>
+                              <div className="text-xs text-gray-500">
+                                {deviceStatus.online_variables}/
+                                {deviceStatus.total_variables} online
+                              </div>
+                              {deviceStatus.offline_variables.length > 0 && (
+                                <div
+                                  className="text-xs text-red-600"
+                                  title={`Offline variables: ${deviceStatus.offline_variables.join(
+                                    ", "
+                                  )}`}
+                                >
+                                  {deviceStatus.offline_variables.length}{" "}
+                                  offline
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">
+                              No status
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {deviceValue.timestamp.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div
+                            className="flex items-center"
+                            title="Click to view chart"
+                          >
+                            <svg
+                              className="w-5 h-5 text-blue-600 hover:text-blue-800"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                              />
+                            </svg>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
       )}
+
+      {/* Variable Chart Modal */}
+      <VariableChartModal
+        isOpen={isChartModalOpen}
+        onClose={handleCloseModal}
+        variable={selectedVariableForChart}
+        variableRecord={
+          selectedVariableForChart
+            ? getVariableRecord(selectedVariableForChart)
+            : undefined
+        }
+        device={
+          selectedVariableForChart
+            ? getDevice(selectedVariableForChart)
+            : undefined
+        }
+      />
     </div>
   );
 }

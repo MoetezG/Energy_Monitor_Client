@@ -32,8 +32,8 @@ function DeviceDeleteModal({
   if (!isOpen || !device) return null;
 
   return (
-    <div className="fixed inset-0 backdrop:blur-3xl flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center mb-4">
           <svg
             className="w-6 h-6 text-red-600 mr-3"
@@ -61,14 +61,14 @@ function DeviceDeleteModal({
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-all"
+            className="btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={() => onConfirm(device)}
             disabled={loading}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center space-x-2 transition-all"
+            className="btn-destructive flex items-center space-x-2"
           >
             {loading ? (
               <>
@@ -420,7 +420,7 @@ export default function DeviceSelector({
   return (
     <div className="space-y-6">
       {/* Available Devices */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-gray-200">
+      <div className="card-glass p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-semibold text-gray-900">
@@ -456,7 +456,7 @@ export default function DeviceSelector({
             <button
               onClick={loadDevices}
               disabled={loading}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 text-sm font-medium transition-all"
+              className="btn-secondary text-sm"
             >
               {loading ? "Loading..." : "Refresh"}
             </button>
@@ -612,7 +612,7 @@ export default function DeviceSelector({
 
       {/* Selected Devices and Variables */}
       {selectedDevices.length > 0 && (
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-gray-200">
+        <div className="card-glass p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-semibold text-gray-900">

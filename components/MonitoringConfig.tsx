@@ -5,6 +5,7 @@ import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
 import VariableEditModal from "./VariableEditModal";
 import VariableDeleteModal from "./VariableDeleteModal";
 import DeviceDeleteModal from "./DeviceDeleteModal";
+import VariableChartModal from "./VariableChartModal";
 import { useToast } from "./ToastProvider";
 
 export default function MonitoringConfig() {
@@ -18,11 +19,16 @@ export default function MonitoringConfig() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deviceDeleteModalOpen, setDeviceDeleteModalOpen] = useState(false);
+  const [chartModalOpen, setChartModalOpen] = useState(false);
   const [selectedVariable, setSelectedVariable] =
     useState<VariableRecord | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<DatabaseDevice | null>(
     null
   );
+  const [selectedVariableForChart, setSelectedVariableForChart] = useState<{
+    variable: VariableRecord;
+    device: DatabaseDevice;
+  } | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   const loadData = async () => {
@@ -73,6 +79,15 @@ export default function MonitoringConfig() {
   const handleDeleteDevice = (device: DatabaseDevice) => {
     setSelectedDevice(device);
     setDeviceDeleteModalOpen(true);
+  };
+
+  // Handle view chart
+  const handleViewChart = (
+    variable: VariableRecord,
+    device: DatabaseDevice
+  ) => {
+    setSelectedVariableForChart({ variable, device });
+    setChartModalOpen(true);
   };
 
   // Handle save variable
@@ -209,6 +224,11 @@ export default function MonitoringConfig() {
   const closeDeviceDeleteModal = () => {
     setDeviceDeleteModalOpen(false);
     setSelectedDevice(null);
+  };
+
+  const closeChartModal = () => {
+    setChartModalOpen(false);
+    setSelectedVariableForChart(null);
   };
 
   useEffect(() => {
@@ -403,7 +423,12 @@ export default function MonitoringConfig() {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {varsByDevice.get(device.id)?.map((v) => (
-                            <tr key={v.id} className="hover:bg-gray-50">
+                            <tr
+                              key={v.id}
+                              className="hover:bg-gray-50 cursor-pointer"
+                              onClick={() => handleViewChart(v, device)}
+                              title="Click to view variable chart"
+                            >
                               <td className="py-3 font-mono text-sm">
                                 {v.var_code}
                               </td>
@@ -428,7 +453,32 @@ export default function MonitoringConfig() {
                               <td className="py-3">
                                 <div className="flex items-center space-x-2">
                                   <button
-                                    onClick={() => handleEditVariable(v)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewChart(v, device);
+                                    }}
+                                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                    title="View chart"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                                      />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditVariable(v);
+                                    }}
                                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                                     title="Edit variable"
                                   >
@@ -447,7 +497,10 @@ export default function MonitoringConfig() {
                                     </svg>
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteVariable(v)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteVariable(v);
+                                    }}
                                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                     title="Delete variable"
                                   >
@@ -529,6 +582,30 @@ export default function MonitoringConfig() {
           onConfirm={handleDeleteDeviceConfirm}
           isLoading={modalLoading}
           variableCount={varsByDevice.get(selectedDevice.id)?.length || 0}
+        />
+      )}
+
+      {/* Variable Chart Modal */}
+      {selectedVariableForChart && (
+        <VariableChartModal
+          isOpen={chartModalOpen}
+          onClose={closeChartModal}
+          variable={{
+            deviceId: selectedVariableForChart.device.id,
+            deviceName:
+              selectedVariableForChart.device.name ||
+              selectedVariableForChart.device.scada_id,
+            variableCode: selectedVariableForChart.variable.var_code,
+            variableName:
+              selectedVariableForChart.variable.name ||
+              selectedVariableForChart.variable.var_code,
+            unit: selectedVariableForChart.variable.unit || "",
+            status: selectedVariableForChart.variable.enabled
+              ? "online"
+              : "offline",
+          }}
+          variableRecord={selectedVariableForChart.variable}
+          device={selectedVariableForChart.device}
         />
       )}
     </div>

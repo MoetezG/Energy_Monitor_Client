@@ -3,88 +3,24 @@
 import Link from "next/link";
 import MonitoringConfig from "@/components/MonitoringConfig";
 import DeviceValuesDisplay from "@/components/DeviceValuesDisplay";
+import DashboardLayout from "@/components/DashboardLayout";
 import { useState } from "react";
 
 export default function MonitorPage() {
   const [activeTab, setActiveTab] = useState<"realtime" | "config">("realtime");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Enhanced Navigation */}
-      <nav className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-18 py-2">
-            <div className="flex items-center">
-              <Link href="/dashboard" className="flex items-center group">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-105 transition-transform">
-                  <svg
-                    className="w-6 h-6 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">
-                    Energy Monitor
-                  </h1>
-                  <p className="text-sm text-gray-600">
-                    Live monitoring & settings
-                  </p>
-                </div>
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-6">
-              <div className="hidden md:flex items-center bg-green-50 px-3 py-2 rounded-full">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                <span className="text-sm font-medium text-green-700">
-                  Monitoring Active
-                </span>
-              </div>
-
-              <Link
-                href="/dashboard"
-                className="flex items-center space-x-2 text-sm text-gray-700 hover:text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all duration-200 group"
-              >
-                <svg
-                  className="w-4 h-4 group-hover:-translate-x-1 transition-transform"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                  />
-                </svg>
-                <span>Back to Dashboard</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <DashboardLayout>
+      <div>
         {/* Enhanced Header with Tabs */}
         <div className="mb-8">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600 mb-3">
+            <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-green-600 to-emerald-600 mb-3">
               Energy Dashboard
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              View live energy data, adjust your settings,
-              and track your usage patterns
+              View live energy data, adjust your settings, and track your usage
+              patterns
             </p>
           </div>
 
@@ -301,7 +237,9 @@ export default function MonitorPage() {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-semibold text-gray-900">Smart Alerts</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Smart Alerts
+                </h3>
                 <p className="text-sm text-gray-600">
                   Coming soon: Smart notifications system
                 </p>
@@ -326,6 +264,6 @@ export default function MonitorPage() {
           animation: fade-in 0.5s ease-out;
         }
       `}</style>
-    </div>
+    </DashboardLayout>
   );
 }
