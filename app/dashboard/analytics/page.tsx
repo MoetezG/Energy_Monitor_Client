@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { scadaAPI, DatabaseDevice, VariableRecord } from "@/lib/api";
-import MultiVariableChart from "@/components/MultiVariableChart";
 import DeviceMultiVariableChart from "@/components/DeviceMultiVariableChart";
 import ReportGenerator from "@/components/ReportGenerator";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -28,6 +27,8 @@ export default function AnalyticsPage() {
     error: null,
   });
 
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
   async function getMockEnergy() {
     const res = await fetch("http://localhost:3000/api/energy");
     return res.json();
@@ -52,102 +53,100 @@ export default function AnalyticsPage() {
     fetchEnergy();
   }, []);
 
-  const loadVariables = useCallback(async (devices: DatabaseDevice[]) => {
-    try {
-      // For now, use mock variables since getVariablesFromDatabase might not exist
-      const allVariables: VariableRecord[] = devices.map((device, index) => ({
-        id: index + 1,
-        device_id: device.id,
-        name: `Variable_${index + 1}`,
-        var_code: `VAR_${index + 1}`,
-        unit: index % 2 === 0 ? "kWh" : "V",
-        timestamp: new Date().toISOString(),
-        value: Math.random() * 100,
-      }));
-      setState((prev) => ({ ...prev, variables: allVariables }));
-    } catch (error: unknown) {
-      console.error("Error loading variables:", error);
-      setState((prev) => ({
-        ...prev,
-        error: "Failed to load variables",
-      }));
-    }
-  }, []);
-
-  const loadDevicesFromDatabase = useCallback(async () => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      const response = await scadaAPI.getDatabaseDevices();
-      if (response.success && response.data) {
-        setState((prev) => ({
-          ...prev,
-          devices: response.data || [],
-          loading: false,
-        }));
-        await loadVariables(response.data || []);
-      } else {
-        setState((prev) => ({
-          ...prev,
-          error: response.error || "Failed to load devices",
-          loading: false,
-        }));
-      }
-    } catch (error: unknown) {
-      // Check if it's a 304 Not Modified response (which is actually successful)
-      const errorObj = error as {
-        status?: number;
-        response?: { status?: number; statusText?: string };
-        message?: string;
-      };
-      if (errorObj?.status === 304 || errorObj?.response?.status === 304) {
-        // 304 means content hasn't changed, use cached data or try again
-        setState((prev) => ({ ...prev, loading: false }));
-        return;
-      }
-
-      console.error("Error loading devices:", error);
-      setState((prev) => ({
-        ...prev,
-        error: `Network error: ${
-          errorObj?.message ||
-          errorObj?.response?.statusText ||
-          "Failed to load devices"
-        }`,
-        loading: false,
-      }));
-    }
-  }, [loadVariables]);
-
   useEffect(() => {
-    loadDevicesFromDatabase();
-  }, [loadDevicesFromDatabase]);
+    // Direct function call to avoid linting issues
+    const initializeData = async () => {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const response = await scadaAPI.getDatabaseDevices();
+        if (response.success && response.data) {
+          setState((prev) => ({
+            ...prev,
+            devices: response.data || [],
+            loading: false,
+          }));
+          // Load variables inline
+          try {
+            const allVariables: VariableRecord[] = (response.data || []).map(
+              (device, index) => ({
+                id: index + 1,
+                device_id: device.id,
+                name: `Variable_${index + 1}`,
+                var_code: `VAR_${index + 1}`,
+                unit: index % 2 === 0 ? "kWh" : "V",
+                timestamp: new Date().toISOString(),
+                value: Math.random() * 100,
+              })
+            );
+            setState((prev) => ({ ...prev, variables: allVariables }));
+          } catch (error: unknown) {
+            console.error("Error loading variables:", error);
+            setState((prev) => ({
+              ...prev,
+              error: "Failed to load variables",
+            }));
+          }
+        } else {
+          setState((prev) => ({
+            ...prev,
+            error: response.error || "Failed to load devices",
+            loading: false,
+          }));
+        }
+      } catch (error: unknown) {
+        const errorObj = error as {
+          status?: number;
+          response?: { status?: number; statusText?: string };
+          message?: string;
+        };
+        if (errorObj?.status === 304 || errorObj?.response?.status === 304) {
+          setState((prev) => ({ ...prev, loading: false }));
+          return;
+        }
 
-  const handleVariableSelection = (variable: VariableRecord) => {
-    setState((prev) => {
-      const isSelected = prev.selectedVariables.some(
-        (v) => v.id === variable.id
-      );
-      const selectedVariables = isSelected
-        ? prev.selectedVariables.filter((v) => v.id !== variable.id)
-        : [...prev.selectedVariables, variable];
-      return { ...prev, selectedVariables };
-    });
-  };
+        console.error("Error loading devices:", error);
+        setState((prev) => ({
+          ...prev,
+          error: `Network error: ${
+            errorObj?.message ||
+            errorObj?.response?.statusText ||
+            "Failed to load devices"
+          }`,
+          loading: false,
+        }));
+      }
+    };
 
-  // Group variables by device
-  const variablesByDevice = state.variables.reduce((acc, variable) => {
-    if (!acc[variable.device_id]) {
-      acc[variable.device_id] = [];
-    }
-    acc[variable.device_id].push(variable);
-    return acc;
-  }, {} as Record<number, VariableRecord[]>);
+    initializeData();
+  }, []);
 
   return (
     <DashboardLayout>
       <div>
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <div></div>
+            <button
+              onClick={() => setIsReportModalOpen(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2 shadow-lg"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <span>Generate Report</span>
+            </button>
+          </div>
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-purple-600 to-indigo-600 mb-3">
             Analytics & Reports
           </h2>
@@ -317,16 +316,14 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             </div>
-
-            {/* Report Generation */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200/50">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">
-                Report Generation
-              </h3>
-              <ReportGenerator />
-            </div>
           </div>
         )}
+
+        {/* Report Generator Modal */}
+        <ReportGenerator
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+        />
       </div>
     </DashboardLayout>
   );

@@ -103,7 +103,7 @@ export interface ReportRequest {
   variableId: string;
   startTime: string;
   endTime: string;
-  period: "day" | "week" | "month";
+  period: "hour" | "day" | "week" | "month";
 }
 
 export interface ReportResponse {

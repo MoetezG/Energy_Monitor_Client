@@ -7,14 +7,16 @@ import {
   VariableRecord,
 } from "@/lib/api";
 
-type Period = "day" | "week" | "month";
+type Period = "hour" | "day" | "week" | "month";
 
 interface ReportGeneratorProps {
-  className?: string;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export default function ReportGenerator({
-  className = "",
+  isOpen,
+  onClose,
 }: ReportGeneratorProps) {
   const [devices, setDevices] = useState<DatabaseDevice[]>([]);
   const [variables, setVariables] = useState<VariableRecord[]>([]);
@@ -22,10 +24,8 @@ export default function ReportGenerator({
     variableId: "",
     startTime: "",
     endTime: "",
-    period: "day" as Period,
+    period: "hour" as Period,
   });
-
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const {
     generateReport,
@@ -117,27 +117,54 @@ export default function ReportGenerator({
     await downloadReport(generatedReport.filePath, fileName);
   };
 
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-    if (!isExpanded) {
-      clearError();
-      clearReport();
-    }
+  const handleClose = () => {
+    clearError();
+    clearReport();
+    onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div
-      className={`bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 ${className}`}
-    >
-      {/* Header */}
+    <div className="fixed inset-0  flex items-center justify-center z-50 p-4">
       <div
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors duration-200"
-        onClick={toggleExpanded}
-      >
-        <div className="flex items-center space-x-3\">
-          <div className="p-2 bg-orange-100 rounded-lg\">
+        className="absolute inset-0 -z-60 backdrop-opacity-50 backdrop-filter bg-black/30 "
+        onClick={handleClose}
+      ></div>
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <svg
+                className="w-5 h-5 text-orange-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Report Generator
+              </h3>
+              <p className="text-sm text-gray-500">
+                Export data as CSV reports
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
             <svg
-              className="w-5 h-5 text-orange-600\"
+              className="w-5 h-5 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -146,43 +173,17 @@ export default function ReportGenerator({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">Report Generator</h3>
-            <p className="text-sm text-gray-500">Export data as CSV reports</p>
-          </div>
+          </button>
         </div>
-        <div className="flex items-center space-x-2">
-          {generatedReport && (
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          )}
-          <svg
-            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
-              isExpanded ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </div>
-      </div>
 
-      {/* Expanded Content */}
-      {isExpanded && (
-        <div className="border-t border-gray-200 p-4 space-y-4">
+        {/* Content */}
+        <div className="p-6 space-y-4">
           <form onSubmit={handleGenerateReport} className="space-y-4">
-            {/* Device and Period in one row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Variable and Period */}
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Variable
@@ -219,16 +220,16 @@ export default function ReportGenerator({
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                 >
-                  <option value="raw">Raw Data</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="hour">Hour</option>
+                  <option value="dail">Daily</option>
+                  <option value="weekl">Weekly</option>
+                  <option value="monthl">Monthly</option>
                 </select>
               </div>
             </div>
 
             {/* Date Range */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Start Time
@@ -330,42 +331,32 @@ export default function ReportGenerator({
 
           {/* Generated Report */}
           {generatedReport && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-800 mb-1">
-                    {generatedReport.message}
-                  </p>
-                  <p className="text-xs text-green-600">
-                    File: {generatedReport.filePath.split("/").pop()}
-                  </p>
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleDownloadReport}
+                className="bg-green-600 flex items-center text-white font-medium py-1.5 px-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all duration-200 text-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  Download
                 </div>
-                <button
-                  onClick={handleDownloadReport}
-                  className="bg-green-600 text-white font-medium py-1.5 px-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all duration-200 text-sm"
-                >
-                  <div className="flex items-center">
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    Download
-                  </div>
-                </button>
-              </div>
+              </button>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
