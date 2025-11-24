@@ -8,6 +8,7 @@ interface FloorSettingsModalProps {
   floorName: string;
   currentTimeRetard?: number; // keeping same prop name for compatibility
   onSave: (floorId: string, settings: { timeRetard: number }) => void; // keeping same for compatibility
+  isEdsOnline?: boolean; // EDS system status
 }
 
 export default function FloorSettingsModal({
@@ -17,6 +18,7 @@ export default function FloorSettingsModal({
   floorName,
   currentTimeRetard = 0,
   onSave,
+  isEdsOnline = false,
 }: FloorSettingsModalProps) {
   const [controlLatency, setControlLatency] = useState(currentTimeRetard);
 
@@ -65,6 +67,36 @@ export default function FloorSettingsModal({
 
         {/* Modal Body */}
         <div className="p-6">
+          {/* EDS Offline Warning */}
+          {!isEdsOnline && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center">
+                <div className="shrink-0">
+                  <svg
+                    className="w-5 h-5 text-red-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-red-800">
+                    EDS System Offline
+                  </h4>
+                  <p className="text-sm text-red-700 mt-1">
+                    Floor settings cannot be configured when the EDS monitoring
+                    system is offline. Please wait for system recovery.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             {/* Time Retard Setting */}
             <div>
@@ -83,7 +115,12 @@ export default function FloorSettingsModal({
                   step="0.5"
                   value={controlLatency}
                   onChange={(e) => setControlLatency(Number(e.target.value))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  disabled={!isEdsOnline}
+                  className={`w-full px-4 py-3 border rounded-lg transition-all duration-200 ${
+                    !isEdsOnline
+                      ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  }`}
                   placeholder="Enter latency time in seconds"
                 />
                 <div className="absolute right-3 top-3 text-gray-400 text-sm">
@@ -164,7 +201,12 @@ export default function FloorSettingsModal({
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+            disabled={!isEdsOnline}
+            className={`px-6 py-2 rounded-lg transition-colors duration-200 font-medium ${
+              !isEdsOnline
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
           >
             Apply Control Settings
           </button>

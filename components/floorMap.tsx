@@ -75,6 +75,16 @@ const floors: Floor[] = [
         ac: true,
         lights: true,
       },
+      {
+        id: "104",
+        x: 750,
+        y: 180,
+        width: 120,
+        height: 80,
+        power: 290,
+        ac: false,
+        lights: true,
+      },
     ],
   },
   {
@@ -84,7 +94,7 @@ const floors: Floor[] = [
     controlLatency: 0,
     rooms: [
       {
-        id: "101",
+        id: "201",
         x: 150, // X coordinate on the floor plan image
         y: 180, // Y coordinate on the floor plan image
         width: 120,
@@ -94,7 +104,7 @@ const floors: Floor[] = [
         lights: false,
       },
       {
-        id: "102",
+        id: "202",
         x: 350,
         y: 180,
         width: 120,
@@ -104,7 +114,7 @@ const floors: Floor[] = [
         lights: true,
       },
       {
-        id: "103",
+        id: "203",
         x: 560,
         y: 180,
         width: 120,
@@ -122,7 +132,7 @@ const floors: Floor[] = [
     controlLatency: 0,
     rooms: [
       {
-        id: "101",
+        id: "301",
         x: 150, // X coordinate on the floor plan image
         y: 180, // Y coordinate on the floor plan image
         width: 120,
@@ -132,7 +142,7 @@ const floors: Floor[] = [
         lights: false,
       },
       {
-        id: "102",
+        id: "302",
         x: 350,
         y: 180,
         width: 120,
@@ -142,7 +152,7 @@ const floors: Floor[] = [
         lights: true,
       },
       {
-        id: "103",
+        id: "303",
         x: 560,
         y: 180,
         width: 120,
@@ -155,7 +165,11 @@ const floors: Floor[] = [
   },
 ];
 
-export default function FloorMap() {
+interface FloorMapProps {
+  isEdsOnline?: boolean; // EDS system status
+}
+
+export default function FloorMap({ isEdsOnline = false }: FloorMapProps) {
   const [currentFloorId, setCurrentFloorId] = useState("1");
   const [floorsData, setFloorsData] = useState(floors);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -683,6 +697,7 @@ export default function FloorMap() {
           floorName={selectedFloorData.name}
           currentTimeRetard={selectedFloorData.controlLatency || 0}
           onSave={handleSaveSettings}
+          isEdsOnline={isEdsOnline}
         />
       )}
 
@@ -694,6 +709,7 @@ export default function FloorMap() {
           roomId={selectedRoom.id}
           roomData={selectedRoom}
           onSave={handleSaveRoomSettings}
+          isEdsOnline={isEdsOnline}
         />
       )}
     </div>

@@ -46,6 +46,7 @@ interface RoomSettingsModalProps {
   onClose: () => void;
   roomId: string;
   roomData: RoomData;
+  isEdsOnline?: boolean; // EDS system status
   onSave: (
     roomId: string,
     settings: RoomSettings,
@@ -60,6 +61,7 @@ export default function RoomSettingsModal({
   roomId,
   roomData,
   onSave,
+  isEdsOnline = false,
 }: RoomSettingsModalProps) {
   const [activeTab, setActiveTab] = useState<"lights" | "ventilation">(
     "lights"
@@ -194,6 +196,36 @@ export default function RoomSettingsModal({
 
         {/* Modal Body */}
         <div className="p-6">
+          {/* EDS Offline Warning */}
+          {!isEdsOnline && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center">
+                <div className="shrink-0">
+                  <svg
+                    className="w-5 h-5 text-red-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-red-800">
+                    EDS System Offline
+                  </h4>
+                  <p className="text-sm text-red-700 mt-1">
+                    Room settings cannot be configured when the EDS monitoring
+                    system is offline. Please wait for system recovery.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-6">
             {/* Enable/Disable Switch */}
             <div className="flex items-center justify-between">
@@ -213,6 +245,7 @@ export default function RoomSettingsModal({
                 <input
                   type="checkbox"
                   checked={currentSettings.enabled}
+                  disabled={!isEdsOnline}
                   onChange={(e) =>
                     updateSetting(activeTab, "enabled", e.target.checked)
                   }
@@ -234,11 +267,16 @@ export default function RoomSettingsModal({
                 max="300"
                 step="0.5"
                 value={currentSettings.delay}
+                disabled={!isEdsOnline}
                 onChange={(e) =>
                   updateSetting(activeTab, "delay", Number(e.target.value))
                 }
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  !currentSettings.enabled ? "bg-gray-50 text-gray-600" : ""
+                className={`w-full px-4 py-3 border rounded-lg transition-all duration-200 ${
+                  !isEdsOnline
+                    ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : !currentSettings.enabled
+                    ? "border-gray-300 bg-gray-50 text-gray-600"
+                    : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 }`}
                 placeholder="Enter delay time"
               />
@@ -258,6 +296,7 @@ export default function RoomSettingsModal({
                 max="3600"
                 step="0.5"
                 value={currentSettings.latencyDeactivation}
+                disabled={!isEdsOnline}
                 onChange={(e) =>
                   updateSetting(
                     activeTab,
@@ -265,8 +304,12 @@ export default function RoomSettingsModal({
                     Number(e.target.value)
                   )
                 }
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  !currentSettings.enabled ? "bg-gray-50 text-gray-600" : ""
+                className={`w-full px-4 py-3 border rounded-lg transition-all duration-200 ${
+                  !isEdsOnline
+                    ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : !currentSettings.enabled
+                    ? "border-gray-300 bg-gray-50 text-gray-600"
+                    : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 }`}
                 placeholder="Enter delay time"
               />
@@ -282,11 +325,16 @@ export default function RoomSettingsModal({
               </label>
               <textarea
                 value={currentSettings.comment}
+                disabled={!isEdsOnline}
                 onChange={(e) =>
                   updateSetting(activeTab, "comment", e.target.value)
                 }
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                  !currentSettings.enabled ? "bg-gray-50 text-gray-600" : ""
+                className={`w-full px-4 py-3 border rounded-lg resize-none transition-all duration-200 ${
+                  !isEdsOnline
+                    ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : !currentSettings.enabled
+                    ? "border-gray-300 bg-gray-50 text-gray-600"
+                    : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 }`}
                 rows={3}
                 placeholder="Add any notes about this room..."
@@ -344,7 +392,12 @@ export default function RoomSettingsModal({
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+            disabled={!isEdsOnline}
+            className={`px-6 py-2 rounded-lg transition-colors duration-200 font-medium ${
+              !isEdsOnline
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
           >
             Save Settings
           </button>
