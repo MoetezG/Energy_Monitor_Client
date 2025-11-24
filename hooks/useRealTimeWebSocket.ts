@@ -333,7 +333,8 @@ export function useRealTimeWebSocket(
   // Initialize
   useEffect(() => {
     loadMetadata();
-  }, [loadMetadata]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only load metadata on mount
 
   // Connect WebSocket after metadata is loaded
   useEffect(() => {

@@ -208,14 +208,16 @@ export function useRealTimeVarData(): UseRealTimeVarDataReturn {
       clearInterval(interval);
       disconnectWebSocket();
     };
-  }, [loadMetadata, connectWebSocket, fetchRealTimeData, disconnectWebSocket]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Fetch data when metadata is loaded
   useEffect(() => {
     if (variables.length > 0 && devices.length > 0) {
       fetchRealTimeData();
     }
-  }, [variables, devices, fetchRealTimeData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variables.length, devices.length]); // Only re-run when counts change
 
   return {
     realTimeData,

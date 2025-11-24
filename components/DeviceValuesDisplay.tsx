@@ -39,6 +39,7 @@ export default function DeviceValuesDisplay({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [selectedVariableForChart, setSelectedVariableForChart] =
@@ -158,9 +159,18 @@ export default function DeviceValuesDisplay({
   ]);
 
   const filteredDeviceValues = useMemo(() => {
-    if (!selectedDeviceId) return deviceValues;
-    return deviceValues.filter((dv) => dv.deviceId === selectedDeviceId);
-  }, [deviceValues, selectedDeviceId]);
+    let filtered = deviceValues;
+
+    if (selectedDeviceId) {
+      filtered = filtered.filter((dv) => dv.deviceId === selectedDeviceId);
+    }
+
+    if (selectedStatus) {
+      filtered = filtered.filter((dv) => dv.status === selectedStatus);
+    }
+
+    return filtered;
+  }, [deviceValues, selectedDeviceId, selectedStatus]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -402,6 +412,19 @@ export default function DeviceValuesDisplay({
                 })}
               </select>
 
+              {/* Status Filter */}
+              <select
+                value={selectedStatus || ""}
+                onChange={(e) => setSelectedStatus(e.target.value || null)}
+                className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <option value="">All Statuses</option>
+                <option value="online">🟢 Online</option>
+                <option value="warning">🟡 Warning</option>
+                <option value="error">🔴 Error</option>
+                <option value="offline">⚫ Offline</option>
+              </select>
+
               {/* View Mode */}
               <div className="flex bg-gray-100 rounded-xl p-1">
                 {(["grid", "list", "table"] as const).map((mode) => (
@@ -615,6 +638,124 @@ export default function DeviceValuesDisplay({
                       <p className="text-xs text-gray-500">
                         Updated: {deviceValue.timestamp.toLocaleTimeString()}
                       </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {viewMode === "list" && (
+            <div className="p-6">
+              <div className="space-y-4">
+                {filteredDeviceValues.map((deviceValue, index) => (
+                  <div
+                    key={`${deviceValue.deviceId}-${deviceValue.variableCode}-${index}`}
+                    onClick={() => handleVariableClick(deviceValue)}
+                    title="Click to view variable chart"
+                    className={`group flex items-center justify-between p-4 border rounded-xl hover:shadow-lg transition-all duration-300 cursor-pointer ${(() => {
+                      const deviceStatus = getDeviceStatus(
+                        deviceValue.deviceId
+                      );
+                      if (deviceStatus?.status === "offline")
+                        return "border-red-300 bg-red-50";
+                      if (deviceStatus?.status === "warning")
+                        return "border-yellow-300 bg-yellow-50";
+                      return "border-gray-200 hover:border-gray-300";
+                    })()}`}
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
+                      {/* Status Indicators */}
+                      <div className="flex flex-col space-y-1">
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            deviceValue.status
+                          )}`}
+                        >
+                          {getStatusIcon(deviceValue.status)}
+                          <span className="ml-1 capitalize">
+                            {deviceValue.status}
+                          </span>
+                        </span>
+                        {(() => {
+                          const deviceStatus = getDeviceStatus(
+                            deviceValue.deviceId
+                          );
+                          if (deviceStatus) {
+                            return (
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  deviceStatus.status === "online"
+                                    ? "bg-green-100 text-green-700 border border-green-200"
+                                    : deviceStatus.status === "warning"
+                                    ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
+                                    : "bg-red-100 text-red-700 border border-red-200"
+                                }`}
+                                title={`Device ${deviceStatus.status}: ${deviceStatus.online_variables}/${deviceStatus.total_variables} variables online`}
+                              >
+                                <span className="text-xs">
+                                  Device {deviceStatus.status.toUpperCase()}
+                                </span>
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+
+                      {/* Variable and Device Info */}
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            {deviceValue.variableName}
+                          </h4>
+                          <div className="bg-gray-300 rounded-full h-1 w-1"></div>
+                          <span className="text-sm text-gray-600">
+                            {deviceValue.deviceName}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <span className="font-mono">
+                            {deviceValue.variableCode}
+                          </span>
+                          <span>Device ID: {deviceValue.deviceId}</span>
+                          <span>
+                            Updated:{" "}
+                            {deviceValue.timestamp.toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Value Display */}
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-gray-900">
+                          {typeof deviceValue.value === "number"
+                            ? deviceValue.value.toFixed(2)
+                            : deviceValue.value}
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">
+                          {deviceValue.unit}
+                        </div>
+                      </div>
+
+                      {/* Chart Icon */}
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-blue-100 p-2 rounded-lg">
+                          <svg
+                            className="w-5 h-5 text-blue-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                            />
+                          </svg>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
